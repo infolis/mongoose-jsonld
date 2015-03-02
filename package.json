@@ -1,0 +1,30 @@
+{
+  "name": "mongoose-jsonld",
+  "version": "0.0.1",
+  "description": "Add JSON-LD context to a Mongoose schema",
+  "main": "lib/index.js",
+  "scripts": {
+    "test": "coffee test/*.coffee|tap-spec"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kba/mongoose-jsonld.git"
+  },
+  "author": "kba",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/kba/mongoose-jsonld/issues"
+  },
+  "homepage": "https://github.com/kba/mongoose-jsonld",
+  "devDependencies": {
+    "mongoose": "^3.8.24",
+    "superagent": "^0.21.0",
+    "tap-spec": "^2.2.2",
+    "tapes": "^0.4.1"
+  },
+  "dependencies": {
+    "jsonld": "^0.3.22",
+    "merge": "^1.2.0",
+    "mongoose": "^3.8.24"
+  }
+}
