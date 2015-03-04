@@ -9,9 +9,9 @@ idSchema = {
 
 # maps concise names to paths to be required
 predefinedContexts = {
-	'prefix.cc': './contexts/prefix.cc.json'
-	'rdfa11': './contexts/rdfa11.json'
-	'basic': './contexts/basic.json'
+	'prefix.cc': './contexts/prefix.cc'
+	'rdfa11': './contexts/rdfa11'
+	'basic': './contexts/basic'
 }
 
 loadContext = (optsOrString) ->
@@ -33,13 +33,17 @@ loadContext = (optsOrString) ->
 module.exports = (moduleOpts) ->
 	moduleOpts or= {}
 	moduleOpts.profile or= 'compact'
-	moduleOpts.apiBase or= 'http://EXAMPLE.ORG/CHANGE-ME'
+	moduleOpts.apiBase or= 'http://EXAMPLE.ORG/CHANGE-ME/API'
+	moduleOpts.schemaBase or= 'http://EXAMPLE.ORG/CHANGE-ME/SCHEMA'
 
-	moduleOpts.idExport or= () ->
+	moduleOpts.urlForInstance or= () ->
 		apiBase = moduleOpts.apiBase
 		collectionName = @.constructor.collection.name
 		id = @._id
 		return "#{apiBase}/#{collectionName}/#{id}"
+
+	moduleOpts.urlForClass or= (short) ->
+		return "#{moduleOpts.schemaBase}/#{short}"
 
 	# Load the context up
 	moduleOpts.expandContext = loadContext(moduleOpts.expandContext)
@@ -54,7 +58,7 @@ module.exports = (moduleOpts) ->
 		pluginOpts = Merge(moduleOpts, pluginOpts)
 
 		# Set the method for export IDs
-		schema.methods.idExport = pluginOpts.idExport
+		schema.methods.urlForInstance = pluginOpts.urlForInstance
 
 		# Every model can have an '@id' field
 		schema.add(idSchema)
@@ -70,7 +74,7 @@ module.exports = (moduleOpts) ->
 			obj = doc.toObject()
 
 			# Set the @id to a dereferenceable URI
-			obj['@id'] = doc.idExport()
+			obj['@id'] = doc.urlForInstance()
 
 			# Delete '_id' unless explicitly kept
 			unless methodOpts.keep_id
@@ -84,9 +88,16 @@ module.exports = (moduleOpts) ->
 			for schemaPathName, schemaPathDef of doc.schema.paths
 				# skip internal fields
 				continue if /^_/.test schemaPathName
-				continue if not schemaPathDef.options?.jsonld
-				obj['@context'][schemaPathName] = schemaPathDef.options.jsonld
+				continue if not schemaPathDef.options?['@context']
+				obj['@context'][schemaPathName] = schemaPathDef.options['@context']
+				enumValues = schemaPathDef.enum()?.enumValues
+				if enumValues.length
+					obj['@context'][schemaPathName]['rdfs:range'] = {
+						'owl:oneOf': enumValues
+						'@type': 'rdfs:Datatype'
+					}
 
+			# console.log obj['@context']
 			switch moduleOpts.profile
 				when 'compact', 'compacted'
 					JsonLD.compact obj, Merge(obj['@context'], methodOpts.expandContext), {expandContext: methodOpts.expandContext}, cb
@@ -103,11 +114,36 @@ module.exports = (moduleOpts) ->
 				methodOpts = {}
 			model = @
 			methodOpts = Merge(pluginOpts, methodOpts)
-			onto = {}
+			onto = []
+
+			# Class def
+			classDef = model.schema.options['@context'] || {}
+			console.log classDef
+			classDef['@id'] = methodOpts.urlForClass(model.modelName)
+			onto.push classDef
+
+			# Properties def
 			for schemaPathName, schemaPathDef of model.schema.paths
 				# skip internal fields
 				continue if /^_/.test schemaPathName
-				continue if not schemaPathDef.options?.jsonld
-				onto[schemaPathName] = schemaPathDef.options.jsonld
-			JsonLD.compact {}, Merge(onto, methodOpts.expandContext), {expandContext: methodOpts.expandContext}, cb
+				continue if /^@context/.test schemaPathName
+				continue if not schemaPathDef.options?['@context']
+				propertyDef = schemaPathDef.options['@context']
+				if not propertyDef['@id']
+					propertyDef['@id'] = methodOpts.urlForClass(schemaPathName)
+				propertyDef['schema:domainIncludes'] = classDef['@id']
+				propertyDef['@type'] = ['rdfs:Property']
+				onto.push propertyDef
+
+			# console.log onto
+
+			switch moduleOpts.profile
+				when 'compact', 'compacted'
+					JsonLD.compact onto, methodOpts.expandContext, {expandContext: methodOpts.expandContext}, cb
+				when 'flatten', 'flattened'
+					JsonLD.flatten {}, Merge(onto, methodOpts.expandContext), {expandContext: methodOpts.expandContext}, cb
+				when 'expand', 'expanded'
+					JsonLD.flatten {}, Merge(onto, methodOpts.expandContext), {expandContext: methodOpts.expandContext}, cb
+				else
+					throw new Error("No such profile: #{methodOpts.profile}")
 
