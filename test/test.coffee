@@ -6,18 +6,17 @@ mongoose = require 'mongoose'
 SuperAgent = require 'superagent'
 
 MongoseJSONLDModule = require '../src'
-mongooseJSONLD = MongoseJSONLDModule(
+mongooseJSONLD = new MongoseJSONLDModule(
 	apiBase: 'http://www-test.bib-uni-mannheim.de/infolis/api'
 	expandContext: 'basic'
 )
-
 dump = (stuff) ->
 	console.log JSON.stringify stuff, null, 2
 
 schemaDefinitions = require '../infolis-schema'
 
 PublicationSchema = new Schema(schemaDefinitions.Publication.schema, {'@context': schemaDefinitions.Publication.jsonld})
-PublicationSchema.plugin(mongooseJSONLD.createPlugin)
+PublicationSchema.plugin(mongooseJSONLD.createPlugin())
 PublicationModel = mongoose.model('Publication', PublicationSchema)
 
 pub1 = new PublicationModel(
@@ -47,8 +46,8 @@ test 'all profiles yield a result', (t) ->
 				console.log JSON.stringify(data, null, 2)
 				Fs.writeFileSync 'tbox.jsonld', JSON.stringify(data, null, 2)
 			cb()
-	# Async.map ['flatten', 'compact', 'expand'], testABoxProfile, (err, result) -> t.end()
-	Async.map ['flatten', 'compact', 'expand'], testTBoxProfile, (err, result) -> t.end()
+	Async.map ['flatten', 'compact', 'expand'], testABoxProfile, (err, result) -> t.end()
+	# Async.map ['flatten', 'compact', 'expand'], testTBoxProfile, (err, result) -> t.end()
 	# Async.map ['compact'], testTBoxProfile, (err, result) -> t.end()
 
 # console.log PublicationModel.schema.paths.type

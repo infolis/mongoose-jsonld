@@ -1,5 +1,6 @@
 Merge = require 'merge'
 JsonLD = require 'jsonld'
+JsonLD2RDF = require 'jsonld-rapper'
 
 idSchema = {
 	'@id': {
@@ -15,7 +16,6 @@ predefinedContexts = {
 }
 
 loadContext = (optsOrString) ->
-	ctx = optsOrString || 'basic'
 	# If this is a string but not a URL
 	if typeof ctx is 'string' 
 		if ctx.indexOf('/') == -1
@@ -24,126 +24,116 @@ loadContext = (optsOrString) ->
 			contextJson = require(predefinedContexts[ctx])
 			ctx = contextJson['@context']
 		else
-			# TODO handle URLs somehow
+			# TODO handle URLs somehow -- dereference?
 	return ctx
 
 # TODO remove unused prefixes
 # removeUnused = (doc) ->
 
-module.exports = (moduleOpts) ->
-	moduleOpts or= {}
-	moduleOpts.profile or= 'compact'
-	moduleOpts.apiBase or= 'http://EXAMPLE.ORG/CHANGE-ME/API'
-	moduleOpts.schemaBase or= 'http://EXAMPLE.ORG/CHANGE-ME/SCHEMA'
+module.exports = class MongooseJsonLD
 
-	moduleOpts.urlForInstance or= () ->
-		apiBase = moduleOpts.apiBase
-		collectionName = @.constructor.collection.name
-		id = @._id
+	constructor: (opts) ->
+		m2j = @
+		@opts = {}
+		@opts[k] = v for k,v of opts
+		@opts.profile or= 'compact'
+		@opts.apiBase or= 'http://EXAMPLE.ORG/CHANGE-ME/API'
+		@opts.schemaBase or= 'http://EXAMPLE.ORG/CHANGE-ME/SCHEMA'
+		@opts.expandContext or= 'basic'
+		# Load the context up
+		@opts.expandContext = loadContext(opts.expandContext)
+		@opts.j2r = new JsonLD2RDF(
+			expandContext: @opts.expandContext
+		)
+
+	urlForInstance: (doc) ->
+		apiBase = @apiBase
+		collectionName = doc.constructor.collection.name
+		id = doc._id
 		return "#{apiBase}/#{collectionName}/#{id}"
 
-	moduleOpts.urlForClass or= (short) ->
-		return "#{moduleOpts.schemaBase}/#{short}"
+	urlForClass: (short) ->
+		return "#{@opts.schemaBase}/#{short}"
 
-	# Load the context up
-	moduleOpts.expandContext = loadContext(moduleOpts.expandContext)
+	listAssertions: (doc, opts, cb) ->
+		opts = Merge @opts, opts
+		obj = doc.toObject()
 
-	# createManager: (schemology) ->
-	#     for clazz, clazzObj of schemology
-	#         clazzDef = clazzObj['jsonld']
-		
+		# Set the @id to a dereferenceable URI
+		obj['@id'] = @urlForInstance(doc)
 
-	createPlugin: (schema, pluginOpts) ->
-		pluginOpts or= {}
-		pluginOpts = Merge(moduleOpts, pluginOpts)
+		# Delete '_id' unless explicitly kept
+		unless opts.keep_id
+			delete obj._id
 
-		# Set the method for export IDs
-		schema.methods.urlForInstance = pluginOpts.urlForInstance
+		# # TODO is this the right behavior
+		obj['@context'] = {}
+		# obj['@context'] = Merge(opts.context, obj['@context'])
+		# obj['@context'] = 'http://prefix.cc/context'
 
-		# Every model can have an '@id' field
-		schema.add(idSchema)
+		for schemaPathName, schemaPathDef of doc.schema.paths
+			# skip internal fields
+			continue if /^_/.test schemaPathName
+			continue if not schemaPathDef.options?['@context']
+			obj['@context'][schemaPathName] = schemaPathDef.options['@context']
+			# console.log schemaPathDef
+			enumValues = schemaPathDef.enum?().enumValues
+			if enumValues and enumValues.length
+				obj['@context'][schemaPathName]['rdfs:range'] = {
+					'owl:oneOf': enumValues
+					'@type': 'rdfs:Datatype'
+				}
+		# TODO J2Rdf
+		cb null, obj
 
-		# Allow export of the Linked Data description of the schema
-		schema.methods.jsonldABox = (methodOpts, cb) ->
-			doc = @
-			if typeof methodOpts == 'function'
-				cb = methodOpts
-				methodOpts = {}
-			methodOpts = Merge(pluginOpts, methodOpts)
-			
-			obj = doc.toObject()
 
-			# Set the @id to a dereferenceable URI
-			obj['@id'] = doc.urlForInstance()
+	listDescription: (model, opts, cb) ->
+		onto = []
 
-			# Delete '_id' unless explicitly kept
-			unless methodOpts.keep_id
-				delete obj._id
+		# Class def
+		classDef = model.schema.options['@context'] || {}
+		console.log classDef
+		classDef['@id'] = @urlForClass(model.modelName)
+		onto.push classDef
 
-			# # TODO is this the right behavior
-			obj['@context'] = {}
-			# obj['@context'] = Merge(methodOpts.context, obj['@context'])
-			# obj['@context'] = 'http://prefix.cc/context'
+		# Properties def
+		for schemaPathName, schemaPathDef of model.schema.paths
+			# skip internal fields
+			continue if /^_/.test schemaPathName
+			continue if /^@context/.test schemaPathName
+			continue if not schemaPathDef.options?['@context']
+			propertyDef = schemaPathDef.options['@context']
+			if not propertyDef['@id']
+				propertyDef['@id'] = @urlForClass(schemaPathName)
+			propertyDef['schema:domainIncludes'] = classDef['@id']
+			propertyDef['@type'] = ['rdfs:Property']
+			onto.push propertyDef
 
-			for schemaPathName, schemaPathDef of doc.schema.paths
-				# skip internal fields
-				continue if /^_/.test schemaPathName
-				continue if not schemaPathDef.options?['@context']
-				obj['@context'][schemaPathName] = schemaPathDef.options['@context']
-				enumValues = schemaPathDef.enum()?.enumValues
-				if enumValues.length
-					obj['@context'][schemaPathName]['rdfs:range'] = {
-						'owl:oneOf': enumValues
-						'@type': 'rdfs:Datatype'
-					}
+		# console.log onto
+		# TODO J2Rdf
+		cb null, onto
 
-			# console.log obj['@context']
-			switch moduleOpts.profile
-				when 'compact', 'compacted'
-					JsonLD.compact obj, Merge(obj['@context'], methodOpts.expandContext), {expandContext: methodOpts.expandContext}, cb
-				when 'flatten', 'flattened'
-					JsonLD.flatten obj, {}, {expandContext: methodOpts.expandContext}, cb
-				when 'expand', 'expanded'
-					JsonLD.flatten obj, {}, {expandContext: methodOpts.expandContext}, cb
-				else
-					throw new Error("No such profile: #{methodOpts.profile}")
+	createPlugin: (schema, opts) ->
+		mongooseJsonLD = @
+		opts or= {}
+		opts = Merge(@opts, opts)
+		return (schema) ->
 
-		schema.statics.jsonldTBox = (methodOpts, cb) ->
-			if typeof methodOpts is 'function'
-				cb = methodOpts
-				methodOpts = {}
-			model = @
-			methodOpts = Merge(pluginOpts, methodOpts)
-			onto = []
+			# Set the method for export IDs
+			schema.methods.urlForInstance = opts.urlForInstance
 
-			# Class def
-			classDef = model.schema.options['@context'] || {}
-			console.log classDef
-			classDef['@id'] = methodOpts.urlForClass(model.modelName)
-			onto.push classDef
+			# Every model can have an '@id' field
+			schema.add(idSchema)
 
-			# Properties def
-			for schemaPathName, schemaPathDef of model.schema.paths
-				# skip internal fields
-				continue if /^_/.test schemaPathName
-				continue if /^@context/.test schemaPathName
-				continue if not schemaPathDef.options?['@context']
-				propertyDef = schemaPathDef.options['@context']
-				if not propertyDef['@id']
-					propertyDef['@id'] = methodOpts.urlForClass(schemaPathName)
-				propertyDef['schema:domainIncludes'] = classDef['@id']
-				propertyDef['@type'] = ['rdfs:Property']
-				onto.push propertyDef
+			# Allow export of the Linked Data description of the schema
+			schema.methods.jsonldABox = (innerOpts, cb) ->
+				if typeof innerOpts == 'function' then [cb, innerOpts] = [innerOpts, {}]
+				doc = @
+				innerOpts = Merge(opts, innerOpts)
+				return mongooseJsonLD.listAssertions(doc, innerOpts, cb)
 
-			# console.log onto
-
-			switch moduleOpts.profile
-				when 'compact', 'compacted'
-					JsonLD.compact onto, methodOpts.expandContext, {expandContext: methodOpts.expandContext}, cb
-				when 'flatten', 'flattened'
-					JsonLD.flatten {}, Merge(onto, methodOpts.expandContext), {expandContext: methodOpts.expandContext}, cb
-				when 'expand', 'expanded'
-					JsonLD.flatten {}, Merge(onto, methodOpts.expandContext), {expandContext: methodOpts.expandContext}, cb
-				else
-					throw new Error("No such profile: #{methodOpts.profile}")
-
+			schema.statics.jsonldTBox = (innerOpts, cb) ->
+				if typeof innerOpts == 'function' then [cb, innerOpts] = [innerOpts, {}]
+				model = @
+				innerOpts = Merge(opts, innerOpts)
+				return mongooseJsonLD.listDescription(model, innerOpts, cb)

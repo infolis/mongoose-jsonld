@@ -1,5 +1,33 @@
 {ObjectId} = require('mongoose').Schema
 module.exports = 
+	Algorithm:
+		'@context':
+			'dc:description': 'An algorithm, a set of steps to calculate something from input, producing output.'
+		schema:
+			author:
+				'@context':
+					'@id': 'dc:creator'
+				type: [{ type: ObjectId, ref: 'Person' }]
+			name:
+				'@context':
+					'@id': 'dc:title'
+					'dc:description': 'Name of the Algorithm'
+				type: String
+			lastModified:
+				'@context':
+					'@id': 'dc:modified'
+				type: Date
+	Execution:
+		'@context':
+			'dc:description': 'The concrete execution of an Algorithm'
+			'rdfs:subClassOf': 'schema:Action'
+	Configuration:
+		'@context':
+			'dc:description': 'A JSON document defining the inputs and environments of an Execution'
+			'rdfs:seeAlso': 'dm2e:Configuration'
+	Pattern:
+		'@context':
+			'dc:description': 'A Regular Expression pattern'
 	Person:
 		'@context':
 			'@id': 'foaf:Person'
@@ -20,7 +48,6 @@ module.exports =
 			author: 
 				'@context':
 					'@id': 'bibo:author'
-				# Reference another collection
 				type: [{ type: ObjectId, ref: 'Person' }]
 			title:
 				type: String
