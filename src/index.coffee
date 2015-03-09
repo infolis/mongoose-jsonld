@@ -41,6 +41,7 @@ module.exports = class MongooseJsonLD
 		# Load the context up
 		@expandContext = loadContext(opts.expandContext)
 		@j2r = new JsonLD2RDF(
+			# TODO do something  with j2r
 			expandContext: @expandContext
 		)
 
