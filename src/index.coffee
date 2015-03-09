@@ -32,6 +32,7 @@ loadContext = (optsOrString) ->
 module.exports = class MongooseJsonLD
 
 	constructor: (opts) ->
+		opts or= {}
 		@[k] = v for k,v of opts
 		@profile or= 'compact'
 		@baseURL or= 'http://EXAMPLE.ORG'

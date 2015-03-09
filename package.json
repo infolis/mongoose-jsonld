@@ -32,7 +32,6 @@
     "tapes": "^0.4.1"
   },
   "dependencies": {
-    "jsonld": "^0.3.22",
     "jsonld-rapper": "0.0.6",
     "merge": "^1.2.0"
   }
