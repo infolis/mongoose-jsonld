@@ -36,24 +36,25 @@ module.exports = class MongooseJsonLD
 		m2j = @
 		@opts = {}
 		@opts[k] = v for k,v of opts
-		@opts.profile or= 'compact'
-		@opts.apiBase or= 'http://EXAMPLE.ORG/CHANGE-ME/API'
-		@opts.schemaBase or= 'http://EXAMPLE.ORG/CHANGE-ME/SCHEMA'
-		@opts.expandContext or= 'basic'
+		@profile or= 'compact'
+		@baseURL or= 'http://EXAMPLE.ORG'
+		@apiPrefix or= '/api/v1'
+		@schemaBase or= 'http://EXAMPLE.ORG/CHANGE-ME/SCHEMA'
+		@expandContext or= 'basic'
 		# Load the context up
-		@opts.expandContext = loadContext(opts.expandContext)
-		@opts.j2r = new JsonLD2RDF(
-			expandContext: @opts.expandContext
+		@expandContext = loadContext(opts.expandContext)
+		@j2r = new JsonLD2RDF(
+			expandContext: @expandContext
 		)
 
 	urlForInstance: (doc) ->
-		apiBase = @apiBase
+		apiBase = "#{@baseURL}/#{@apiPrefix}"
 		collectionName = doc.constructor.collection.name
 		id = doc._id
 		return "#{apiBase}/#{collectionName}/#{id}"
 
 	urlForClass: (short) ->
-		return "#{@opts.schemaBase}/#{short}"
+		return "#{@schemaBase}/#{short}"
 
 	listAssertions: (doc, opts, cb) ->
 		opts = Merge @opts, opts
@@ -109,11 +110,37 @@ module.exports = class MongooseJsonLD
 			propertyDef['@type'] = ['rdfs:Property']
 			onto.push propertyDef
 
-		# console.log onto
 		# TODO J2Rdf
 		cb null, onto
+	
+	injectRestfulHandlers: (app, model) ->
+		basePath = "#{@apiPrefix}/#{model.collection.name}"
+		console.log model.db.readyState
+		# GET /api/somethings  => list all
+		app.get "#{basePath}", (req, res, next) ->
+			console.log 'foo'
+			model.find {}, (err, docs) ->
+				res.status 200
+				res.send docs
+		# GET /api/somethings/:id  => return Iid
+		app.get "#{basePath}/:id", (req, res, next) ->
+			model.findOne {_id: req.params.id}, (err, doc) ->
+				if err
+					# console.log err
+					res.status  404
+					res.send {}
+				else
+					res.status 200
+					res.send doc
+		# POST /api/somethings => create new something
+		app.post "#{basePath}", (req, res, next) ->
+			console.log req.data
+			next "FOO"
+		# TODO
+		# PUT /api/somethings/:id => create/replace something with :id
+		# TODO
 
-	createPlugin: (schema, opts) ->
+	createMongoosePlugin: (schema, opts) ->
 		mongooseJsonLD = @
 		opts or= {}
 		opts = Merge(@opts, opts)

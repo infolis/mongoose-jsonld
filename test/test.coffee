@@ -3,20 +3,20 @@ Async = require 'async'
 test = require 'tapes'
 mongoose = require 'mongoose'
 {Schema} = mongoose
-SuperAgent = require 'superagent'
 
-MongoseJSONLDModule = require '../src'
-mongooseJSONLD = new MongoseJSONLDModule(
-	apiBase: 'http://www-test.bib-uni-mannheim.de/infolis/api'
+MongoseJSONLD = require '../src'
+mongooseJSONLD = new MongoseJSONLD(
+	baseURL: 'http://www-test.bib-uni-mannheim.de/infolis'
+	apiPrefix: '/api'
 	expandContext: 'basic'
 )
 dump = (stuff) ->
 	console.log JSON.stringify stuff, null, 2
 
-schemaDefinitions = require '../infolis-schema'
+schemaDefinitions = require '../data/infolis-schema'
 
 PublicationSchema = new Schema(schemaDefinitions.Publication.schema, {'@context': schemaDefinitions.Publication.jsonld})
-PublicationSchema.plugin(mongooseJSONLD.createPlugin())
+PublicationSchema.plugin(mongooseJSONLD.createMongoosePlugin())
 PublicationModel = mongoose.model('Publication', PublicationSchema)
 
 pub1 = new PublicationModel(
@@ -50,6 +50,8 @@ test 'all profiles yield a result', (t) ->
 	# Async.map ['flatten', 'compact', 'expand'], testTBoxProfile, (err, result) -> t.end()
 	# Async.map ['compact'], testTBoxProfile, (err, result) -> t.end()
 
+mongooseJSONLD.createRestfulHandler(PublicationModel)
+
 # console.log PublicationModel.schema.paths.type
 # PublicationModel.jsonldTBox {profile:(err, data) ->
 #         if err 
@@ -58,16 +60,3 @@ test 'all profiles yield a result', (t) ->
 #             console.log(JSON.stringify(data,null,2))
 # pub1.jsonldABox {profile: 'flatten'}, (err, data) ->
 	# # console.log data
-
-# pub1.jsonldABox {}, (err, data) -> 
-# SuperAgent.get('http://prefix.cc/context')
-#     .set('Accept', 'application/ld+json')
-#     .end (res) ->
-#         dump res.status
-#         dump res.ok
-#         dump res.text
-#         dump res.body
-#         # pub1.jsonldABox {}, (err, bar) ->
-#             # dump err
-#             # console.log err.details.cause.details
-#             # console.log bar

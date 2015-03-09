@@ -4,7 +4,8 @@
   "description": "Add JSON-LD context to a Mongoose schema",
   "main": "lib/index.js",
   "scripts": {
-    "test": "coffee test/*.coffee|tap-spec"
+    "test": "coffee test/*.coffee|tap-spec",
+    "mongo": "mongod --dbpath data/mongodb --port 27018"
   },
   "repository": {
     "type": "git",
@@ -17,12 +18,16 @@
   },
   "homepage": "https://github.com/kba/mongoose-jsonld",
   "devDependencies": {
+    "body-parser": "^1.12.0",
     "mongoose": "^3.8.24",
     "superagent": "^0.21.0",
+    "supertest": "^0.15.0",
     "tap-spec": "^2.2.2",
     "tapes": "^0.4.1"
   },
   "dependencies": {
+    "express": "^4.12.2",
+    "express-jsonld": "0.0.2",
     "jsonld": "^0.3.22",
     "jsonld-rapper": "0.0.5",
     "merge": "^1.2.0",

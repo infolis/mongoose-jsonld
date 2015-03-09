@@ -31,3 +31,4 @@ node_modules
 abox.jsonld
 tbox.jsonld
 test.jsonld
+data/mongodb
