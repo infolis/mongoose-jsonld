@@ -1,6 +1,6 @@
 {
   "name": "mongoose-jsonld",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Add JSON-LD context to a Mongoose schema",
   "main": "lib/index.js",
   "scripts": {
@@ -29,8 +29,7 @@
     "docker": "^0.2.14",
     "tap-spec": "^2.2.2",
     "express": "^4.12.2",
-    "tapes": "^0.4.1",
-    "mongoose": "^3.8.24"
+    "tapes": "^0.4.1"
   },
   "dependencies": {
     "jsonld": "^0.3.22",
