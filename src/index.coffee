@@ -1,5 +1,4 @@
 Merge = require 'merge'
-JsonLD = require 'jsonld'
 JsonLD2RDF = require 'jsonld-rapper'
 
 idSchema = {
@@ -33,9 +32,7 @@ loadContext = (optsOrString) ->
 module.exports = class MongooseJsonLD
 
 	constructor: (opts) ->
-		m2j = @
-		@opts = {}
-		@opts[k] = v for k,v of opts
+		@[k] = v for k,v of opts
 		@profile or= 'compact'
 		@baseURL or= 'http://EXAMPLE.ORG'
 		@apiPrefix or= '/api/v1'
@@ -112,33 +109,6 @@ module.exports = class MongooseJsonLD
 
 		# TODO J2Rdf
 		cb null, onto
-	
-	injectRestfulHandlers: (app, model) ->
-		basePath = "#{@apiPrefix}/#{model.collection.name}"
-		console.log model.db.readyState
-		# GET /api/somethings  => list all
-		app.get "#{basePath}", (req, res, next) ->
-			console.log 'foo'
-			model.find {}, (err, docs) ->
-				res.status 200
-				res.send docs
-		# GET /api/somethings/:id  => return Iid
-		app.get "#{basePath}/:id", (req, res, next) ->
-			model.findOne {_id: req.params.id}, (err, doc) ->
-				if err
-					# console.log err
-					res.status  404
-					res.send {}
-				else
-					res.status 200
-					res.send doc
-		# POST /api/somethings => create new something
-		app.post "#{basePath}", (req, res, next) ->
-			console.log req.data
-			next "FOO"
-		# TODO
-		# PUT /api/somethings/:id => create/replace something with :id
-		# TODO
 
 	createMongoosePlugin: (schema, opts) ->
 		mongooseJsonLD = @

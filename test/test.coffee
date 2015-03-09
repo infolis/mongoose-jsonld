@@ -50,8 +50,6 @@ test 'all profiles yield a result', (t) ->
 	# Async.map ['flatten', 'compact', 'expand'], testTBoxProfile, (err, result) -> t.end()
 	# Async.map ['compact'], testTBoxProfile, (err, result) -> t.end()
 
-mongooseJSONLD.createRestfulHandler(PublicationModel)
-
 # console.log PublicationModel.schema.paths.type
 # PublicationModel.jsonldTBox {profile:(err, data) ->
 #         if err 
