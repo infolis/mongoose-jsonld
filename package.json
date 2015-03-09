@@ -5,7 +5,11 @@
   "main": "lib/index.js",
   "scripts": {
     "test": "coffee test/*.coffee|tap-spec",
-    "mongo": "mongod --dbpath data/mongodb --port 27018"
+    "mongo": "mongod --dbpath data/mongodb --port 27018",
+    "docs": "docker -i src -o apidocs -s -n -c vs",
+    "compile": "coffee -c -o lib src",
+    "clean": "rm -r apidocs lib ; true",
+    "prepublish": "npm run compile"
   },
   "repository": {
     "type": "git",
@@ -27,6 +31,7 @@
   },
   "dependencies": {
     "express": "^4.12.2",
+    "docker": "^0.2.14",
     "express-jsonld": "0.0.2",
     "jsonld": "^0.3.22",
     "jsonld-rapper": "0.0.5",

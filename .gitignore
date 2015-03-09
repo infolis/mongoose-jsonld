@@ -32,3 +32,4 @@ abox.jsonld
 tbox.jsonld
 test.jsonld
 data/mongodb
+lib
