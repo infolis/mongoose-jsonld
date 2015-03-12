@@ -14,6 +14,7 @@ predefinedContexts = {
 	'basic': './contexts/basic'
 }
 
+# TODO this should be moved elsewhere
 loadContext = (optsOrString) ->
 	# If this is a string but not a URL
 	if typeof ctx is 'string' 
