@@ -28,25 +28,27 @@ test 'Valid publication', (t) ->
 		t.notOk err, 'no validation error'
 		t.end()
 
-test 'all profiles yield a result', (t) ->
-	testABoxProfile = (profile, cb) ->
-		pub1.jsonldABox {profile:profile}, (err, data) ->
-			t.notOk err, "no error for #{profile}"
-			if profile is 'compact'
-				Fs.writeFileSync 'abox.jsonld', JSON.stringify(data, null, 2)
-			t.ok data, "result for #{profile}"
-			cb()
-	testTBoxProfile = (profile, cb) ->
-		PublicationModel.jsonldTBox {profile:profile}, (err, data) ->
-			if err
-				console.log JSON.stringify(err, null, 2)
-			t.notOk err, "no error for #{profile}"
-			t.ok data, "result for #{profile}"
-			if profile is 'compact'
-				console.log JSON.stringify(data, null, 2)
-				Fs.writeFileSync 'tbox.jsonld', JSON.stringify(data, null, 2)
-			cb()
-	Async.map ['flatten', 'compact', 'expand'], testABoxProfile, (err, result) -> t.end()
+testABoxProfile = (profile, cb) ->
+	pub1.jsonldABox {profile:profile}, (err, data) ->
+		t.notOk err, "no error for #{profile}"
+		if profile is 'compact'
+			Fs.writeFileSync 'abox.jsonld', JSON.stringify(data, null, 2)
+		t.ok data, "result for #{profile}"
+		cb()
+
+testTBoxProfile = (profile, cb) ->
+	PublicationModel.jsonldTBox {profile:profile}, (err, data) ->
+		if err
+			console.log JSON.stringify(err, null, 2)
+		t.notOk err, "no error for #{profile}"
+		t.ok data, "result for #{profile}"
+		if profile is 'compact'
+			console.log JSON.stringify(data, null, 2)
+			Fs.writeFileSync 'tbox.jsonld', JSON.stringify(data, null, 2)
+		cb()
+
+# test 'all profiles yield a result', (t) ->
+	# Async.map ['flatten', 'compact', 'expand'], testABoxProfile, (err, result) -> t.end()
 	# Async.map ['flatten', 'compact', 'expand'], testTBoxProfile, (err, result) -> t.end()
 	# Async.map ['compact'], testTBoxProfile, (err, result) -> t.end()
 

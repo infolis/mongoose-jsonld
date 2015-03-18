@@ -1,5 +1,4 @@
 Merge = require 'merge'
-JsonLD2RDF = require 'jsonld-rapper'
 
 idSchema = {
 	'@id': {
@@ -38,17 +37,12 @@ module.exports = class MongooseJsonLD
 		@profile or= 'compact'
 		@baseURL or= 'http://EXAMPLE.ORG'
 		@apiPrefix or= '/api/v1'
-		@schemaBase or= 'http://EXAMPLE.ORG/CHANGE-ME/SCHEMA'
+		@schemaBase or= "#{@baseURL}/CHANGE-ME/SCHEMA"
 		@expandContext or= 'basic'
-		# Load the context up
 		@expandContext = loadContext(opts.expandContext)
-		@j2r = new JsonLD2RDF(
-			# TODO do something  with j2r
-			expandContext: @expandContext
-		)
 
 	urlForInstance: (doc) ->
-		apiBase = "#{@baseURL}/#{@apiPrefix}"
+		apiBase = "#{@baseURL}#{@apiPrefix}"
 		collectionName = doc.constructor.collection.name
 		id = doc._id
 		return "#{apiBase}/#{collectionName}/#{id}"
@@ -67,24 +61,29 @@ module.exports = class MongooseJsonLD
 		unless opts.keep_id
 			delete obj._id
 
-		# # TODO is this the right behavior
+		# TODO is this the right behavior
 		obj['@context'] = {}
 		# obj['@context'] = Merge(opts.context, obj['@context'])
 		# obj['@context'] = 'http://prefix.cc/context'
 
-		for schemaPathName, schemaPathDef of doc.schema.paths
-			# skip internal fields
-			continue if /^_/.test schemaPathName
-			continue if not schemaPathDef.options?['@context']
-			obj['@context'][schemaPathName] = schemaPathDef.options['@context']
-			# console.log schemaPathDef
-			enumValues = schemaPathDef.enum?().enumValues
-			if enumValues and enumValues.length
-				obj['@context'][schemaPathName]['rdfs:range'] = {
-					'owl:oneOf': enumValues
-					'@type': 'rdfs:Datatype'
-				}
-		# TODO J2Rdf
+		# console.log 
+		if doc.schema.options['@context']
+			obj['@context'] = doc.schema.options['@context']
+
+		# for schemaPathName, schemaPathDef of doc.schema.paths
+		#     # skip internal fields
+		#     continue if /^_/.test schemaPathName
+		#     continue if not schemaPathDef.options
+		#     continue if not schemaPathDef.options['@context']
+		#     obj['@context'][schemaPathName] = schemaPathDef.options['@context']
+		#     # console.log schemaPathDef
+		#     enumValues = schemaPathDef.enum?().enumValues
+		#     if enumValues and enumValues.length
+		#         obj['@context'][schemaPathName]['rdfs:range'] = {
+		#             'owl:oneOf': enumValues
+		#             '@type': 'rdfs:Datatype'
+		#         }
+
 		cb null, obj
 
 
@@ -110,7 +109,6 @@ module.exports = class MongooseJsonLD
 			propertyDef['@type'] = ['rdfs:Property']
 			onto.push propertyDef
 
-		# TODO J2Rdf
 		cb null, onto
 
 	createMongoosePlugin: (schema, opts) ->
@@ -137,3 +135,14 @@ module.exports = class MongooseJsonLD
 				model = @
 				innerOpts = Merge(opts, innerOpts)
 				return mongooseJsonLD.listDescription(model, innerOpts, cb)
+
+			# schema.statics.create =  (doc, cb) ->
+			#     for __, path of @schema.paths
+			#         dbRef = path.options.type
+			#         if Array.isArray dbRef
+			#             pathType = dbRef[0].type
+			#             pathRef = dbRef[0].ref
+			#             console.log pathType
+			#             console.log pathRef
+			#     console.log doc
+			#     next()
