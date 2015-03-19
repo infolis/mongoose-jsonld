@@ -6,7 +6,7 @@ mongoose = require 'mongoose'
 
 MongoseJSONLD = require '../src'
 mongooseJSONLD = new MongoseJSONLD(
-	baseURL: 'http://www-test.bib-uni-mannheim.de/infolis'
+	baseURI: 'http://www-test.bib-uni-mannheim.de/infolis'
 	apiPrefix: '/api'
 	expandContext: 'basic'
 )
@@ -28,7 +28,7 @@ test 'Valid publication', (t) ->
 		t.notOk err, 'no validation error'
 		t.end()
 
-testABoxProfile = (profile, cb) ->
+testABoxProfile = (t, profile, cb) ->
 	pub1.jsonldABox {profile:profile}, (err, data) ->
 		t.notOk err, "no error for #{profile}"
 		if profile is 'compact'
@@ -36,7 +36,7 @@ testABoxProfile = (profile, cb) ->
 		t.ok data, "result for #{profile}"
 		cb()
 
-testTBoxProfile = (profile, cb) ->
+testTBoxProfile = (t, profile, cb) ->
 	PublicationModel.jsonldTBox {profile:profile}, (err, data) ->
 		if err
 			console.log JSON.stringify(err, null, 2)
@@ -47,10 +47,11 @@ testTBoxProfile = (profile, cb) ->
 			Fs.writeFileSync 'tbox.jsonld', JSON.stringify(data, null, 2)
 		cb()
 
-# test 'all profiles yield a result', (t) ->
-	# Async.map ['flatten', 'compact', 'expand'], testABoxProfile, (err, result) -> t.end()
-	# Async.map ['flatten', 'compact', 'expand'], testTBoxProfile, (err, result) -> t.end()
-	# Async.map ['compact'], testTBoxProfile, (err, result) -> t.end()
+test 'all profiles yield a result (ABox)', (t) ->
+	Async.map ['flatten', 'compact', 'expand'], ((profile, cb) -> testABoxProfile(t, profile, cb)), (err, result) -> t.end()
+
+test 'all profiles yield a result (TBox)', (t) ->
+	Async.map ['flatten', 'compact', 'expand'], ((profile, cb) -> testTBoxProfile(t, profile, cb)), (err, result) -> t.end()
 
 # console.log PublicationModel.schema.paths.type
 # PublicationModel.jsonldTBox {profile:(err, data) ->

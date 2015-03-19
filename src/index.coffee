@@ -35,14 +35,14 @@ module.exports = class MongooseJsonLD
 		opts or= {}
 		@[k] = v for k,v of opts
 		@profile or= 'compact'
-		@baseURL or= 'http://EXAMPLE.ORG'
+		@baseURI or= 'http://EXAMPLE.ORG'
 		@apiPrefix or= '/api/v1'
-		@schemaBase or= "#{@baseURL}/CHANGE-ME/SCHEMA"
+		@schemaBase or= "#{@baseURI}/CHANGE-ME/SCHEMA"
 		@expandContext or= 'basic'
 		@expandContext = loadContext(opts.expandContext)
 
 	urlForInstance: (doc) ->
-		apiBase = "#{@baseURL}#{@apiPrefix}"
+		apiBase = "#{@baseURI}#{@apiPrefix}"
 		collectionName = doc.constructor.collection.name
 		id = doc._id
 		return "#{apiBase}/#{collectionName}/#{id}"
