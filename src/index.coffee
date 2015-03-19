@@ -37,7 +37,7 @@ module.exports = class MongooseJsonLD
 		@profile or= 'compact'
 		@baseURI or= 'http://EXAMPLE.ORG'
 		@apiPrefix or= '/api/v1'
-		@schemaBase or= "#{@baseURI}/CHANGE-ME/SCHEMA"
+		@schemaPrefix or= "/schema"
 		@expandContext or= 'basic'
 		@expandContext = loadContext(opts.expandContext)
 
@@ -48,7 +48,7 @@ module.exports = class MongooseJsonLD
 		return "#{apiBase}/#{collectionName}/#{id}"
 
 	urlForClass: (short) ->
-		return "#{@schemaBase}/#{short}"
+		return "#{@baseURI}#{@schemaPrefix}/#{short}"
 
 	listAssertions: (doc, opts, cb) ->
 		opts = Merge @opts, opts
@@ -66,7 +66,6 @@ module.exports = class MongooseJsonLD
 		# obj['@context'] = Merge(opts.context, obj['@context'])
 		# obj['@context'] = 'http://prefix.cc/context'
 
-		# console.log 
 		if doc.schema.options['@context']
 			obj['@context'] = doc.schema.options['@context']
 
@@ -88,28 +87,29 @@ module.exports = class MongooseJsonLD
 
 
 	listDescription: (model, opts, cb) ->
-		onto = []
+		# onto = []
 
 		# Class def
 		classDef = model.schema.options['@context'] || {}
-		console.log classDef
+		# console.log classDef
 		classDef['@id'] = @urlForClass(model.modelName)
-		onto.push classDef
+		cb null, classDef
+		# onto.push classDef
 
 		# Properties def
-		for schemaPathName, schemaPathDef of model.schema.paths
-			# skip internal fields
-			continue if /^_/.test schemaPathName
-			continue if /^@context/.test schemaPathName
-			continue if not schemaPathDef.options?['@context']
-			propertyDef = schemaPathDef.options['@context']
-			if not propertyDef['@id']
-				propertyDef['@id'] = @urlForClass(schemaPathName)
-			propertyDef['schema:domainIncludes'] = classDef['@id']
-			propertyDef['@type'] = ['rdfs:Property']
-			onto.push propertyDef
+		# for schemaPathName, schemaPathDef of model.schema.paths
+		#     # skip internal fields
+		#     continue if /^_/.test schemaPathName
+		#     continue if /^@context/.test schemaPathName
+		#     continue if not schemaPathDef.options?['@context']
+		#     propertyDef = schemaPathDef.options['@context']
+		#     if not propertyDef['@id']
+		#         propertyDef['@id'] = @urlForClass(schemaPathName)
+		#     propertyDef['schema:domainIncludes'] = classDef['@id']
+		#     propertyDef['@type'] = ['rdfs:Property']
+		#     onto.push propertyDef
 
-		cb null, onto
+		# cb null, onto
 
 	createMongoosePlugin: (schema, opts) ->
 		mongooseJsonLD = @
@@ -133,6 +133,7 @@ module.exports = class MongooseJsonLD
 			schema.statics.jsonldTBox = (innerOpts, cb) ->
 				if typeof innerOpts == 'function' then [cb, innerOpts] = [innerOpts, {}]
 				model = @
+				console.log model.schema.options
 				innerOpts = Merge(opts, innerOpts)
 				return mongooseJsonLD.listDescription(model, innerOpts, cb)
 
