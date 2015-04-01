@@ -171,35 +171,37 @@ module.exports = class JsonldSchemaFactory
 				propDef['type'] = @typeMap[propDef['type']]
 
 			# handle property @context
-			propDef['@context'] or= {}
-			if typeof propDef['@context'] is 'object'
-				pc = {}
+			
+			pc = propDef['@context'] || {}
+			if typeof pc isnt 'object'
+				throw new Error("UNHANDLED @context not being an object, but #{typeof pc}")
 
-				# Canonicalize prefixed names
-				for x,y of propDef['@context']
+			# Canonicalize prefixed names
+			for x,y of propDef['@context']
+				if typeof y is 'string'
 					pc[@curie.shorten @curie.expand x] = @curie.shorten @curie.expand y
+				else
+					pc[@curie.shorten @curie.expand x] = y
 
-				# rdf:type rdfs:Property
-				pc['rdf:type'] or= []
-				if typeof pc['rdf:type'] is 'string'
-					pc['rdf:type'] = [pc['rdf:type']]
-				pc['rdf:type'].push {'@id': 'rdfs:Property'}
+			# rdf:type rdfs:Property
+			pc['rdf:type'] or= []
+			if typeof pc['rdf:type'] is 'string'
+				pc['rdf:type'] = [pc['rdf:type']]
+			pc['rdf:type'].push {'@id': 'rdfs:Property'}
 
-				# enum values -> owl:oneOf
-				enumValues = propDef.enum
-				if enumValues and enumValues.length
-					pc['rdfs:range'] = {
-						'owl:oneOf': enumValues
-						'@type': 'xsd:string'
-					}
+			# enum values -> owl:oneOf
+			enumValues = propDef.enum
+			if enumValues and enumValues.length
+				pc['rdfs:range'] = {
+					'owl:oneOf': enumValues
+					'@type': 'xsd:string'
+				}
 
-				# schema:domainIncludes (rdfs:domain)
-				pc['schema:domainIncludes'] or= []
-				pc['schema:domainIncludes'].push {'@id': classUri}
+			# schema:domainIncludes (rdfs:domain)
+			pc['schema:domainIncludes'] or= []
+			pc['schema:domainIncludes'].push {'@id': classUri}
 
-				propDef['@context'] = pc
-			else
-				throw new Error('UNHANDLED @context being a string')
+			propDef['@context'] = pc
 
 		schema = new Mongoose.Schema(schemaDef, mongooseOptions)
 		schema.plugin(@createPlugin())

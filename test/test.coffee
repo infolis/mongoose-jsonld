@@ -72,6 +72,26 @@ test 'with and without callbacl', (t) ->
 			t.deepEquals dataFromJ2R, dataFromCB, "Callback and return give the same result"
 			t.end()
 
+test 'shorten expand with objects', (t) ->
+	FooBarQuux = Mongoose.model 'FooBarQuux',  factory.createSchema('FooBarQuux', {
+		'@context':
+			'dc:foo':
+				'@id': 'dc:bar'
+			'dc:quux':
+				'@id': 'dc:froop'
+		blork:
+			'@context':
+				'dc:frobozz': 
+					'@id': 'dc:fnep'
+			type: 'String'
+	})
+	# console.log FooBarQuux.jsonldTBox()
+	FooBarQuux.jsonldTBox {to:'turtle'}, (err, data) ->
+		t.notOk err, "No error"
+		t.ok (data.indexOf('dc:frobozz dc:fnep ;') > -1), "Contains correct Turtle"
+		t.end()
+
+
 # # console.log Publication.schema.paths.type
 # # Publication.jsonldTBox {profile:(err, data) ->
 # #         if err 
