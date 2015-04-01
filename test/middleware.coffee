@@ -6,7 +6,7 @@ request = require 'supertest'
 {Schema} = mongoose
 SuperAgent = require 'superagent'
 
-{SchemaFactory} = require '../src'
+SchemaFactory = require '../src'
 factory = new SchemaFactory(
 	baseURL: 'http://www-test.bib-uni-mannheim.de/infolis'
 	apiPrefix: '/api/v1'

@@ -1,9 +1,8 @@
 Fs = require 'fs'
 Async = require 'async'
 test = require 'tapes'
-mongoose = require 'mongoose'
-{Schema} = mongoose
-{SchemaFactory, MongoosePlugin} = require '../src'
+Mongoose = require 'mongoose'
+SchemaFactory = require '../src'
 dump = (stuff) ->
 	console.log JSON.stringify stuff, null, 2
 
@@ -21,7 +20,7 @@ factory = new SchemaFactory(
 schemaDefinitions = require '../data/infolis-schema'
 
 PublicationSchema = factory.createSchema('Publication', schemaDefinitions.Publication)
-Publication = mongoose.model('Publication', PublicationSchema)
+Publication = Mongoose.model('Publication', PublicationSchema)
 
 pub1 = new Publication(
 	title: "The Art of Foo"
