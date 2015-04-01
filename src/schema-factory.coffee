@@ -158,11 +158,11 @@ module.exports = class JsonldSchemaFactory
 			if propDef['type'] and Array.isArray(propDef['type'])
 				typeDef = propDef['type'][0]
 				if typeDef and typeDef['type'] and typeof typeDef['type'] is 'string'
-					typeDef['type'] = @typemap[typeDef['type']]
+					typeDef['type'] = @typeMap[typeDef['type']]
 
 			# handling flat types
 			else if propDef['type'] and propDef['type'] and typeof propDef['type'] is 'string'
-				propDef['type'] = @typemap[propDef['type']]
+				propDef['type'] = @typeMap[propDef['type']]
 
 			# handle property @context
 			propDef['@context'] or= {}
