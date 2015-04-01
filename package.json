@@ -4,7 +4,7 @@
   "description": "Add JSON-LD context to a Mongoose schema",
   "main": "lib/index.js",
   "scripts": {
-    "test": "coffee test/*.coffee|tap-spec",
+    "test": "for i in test/*.coffee;do coffee $i|tap-spec;done",
     "mongo": "mongod --dbpath data/mongodb --port 27018",
     "docs": "docker -i src -o apidocs -s -n -c vs",
     "compile": "coffee -c -o lib src",
@@ -32,6 +32,7 @@
     "tapes": "^0.4.1"
   },
   "dependencies": {
+    "express-jsonld": "0.0.5",
     "jsonld-common-contexts": "0.0.8",
     "jsonld-rapper": "0.0.9",
     "merge": "^1.2.0"
