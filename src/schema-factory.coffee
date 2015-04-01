@@ -90,7 +90,7 @@ module.exports = class JsonldSchemaFactory
 			propCtx = schemaPathDef.options?['@context']
 			continue unless propCtx
 			propCtx['@id'] = @curie.shorten @uriForClass(schemaPathName)
-			propCtx['@type'] = ['rdfs:Property']
+			propCtx['@type'] = 'rdfs:Property'
 			onto.push propCtx
 
 		return onto
@@ -117,14 +117,20 @@ module.exports = class JsonldSchemaFactory
 				if typeof innerOpts == 'function' then [cb, innerOpts] = [innerOpts, {}]
 				doc = @
 				innerOpts = Merge(opts, innerOpts)
-				return factory._convert factory._listAssertions(doc, innerOpts, cb), innerOpts, cb
+				if cb
+					return factory._convert factory._listAssertions(doc, innerOpts, cb), innerOpts, cb
+				else
+					return factory._listAssertions(doc, innerOpts, cb)
 
 			schema.statics.jsonldTBox = (innerOpts, cb) ->
 				if typeof innerOpts == 'function' then [cb, innerOpts] = [innerOpts, {}]
 				model = @
 				# console.log model.schema.options
 				innerOpts = Merge(opts, innerOpts)
-				return factory._convert factory._listDescription(model, innerOpts, cb), innerOpts, cb
+				if cb
+					return factory._convert factory._listDescription(model, innerOpts, cb), innerOpts, cb
+				else
+					return factory._listDescription(model, innerOpts, cb)
 
 	createSchema : (className, schemaDef, mongooseOptions) ->
 		mongooseOptions or= {}

@@ -66,6 +66,12 @@ test 'all profiles yield a result (TBox)', (t) ->
 	, (err, result) -> t.end()
 	# Async.map ['compact'], testTBoxProfile, (err, result) -> t.end()
 
+test 'with and without callbacl', (t) ->
+	pub1.jsonldABox {profile: 'expand'}, (err, dataFromCB) ->
+		factory.jsonldRapper.convert pub1.jsonldABox(), 'jsonld', 'jsonld', {profile: 'expand'}, (err, dataFromJ2R) ->
+			t.deepEquals dataFromJ2R, dataFromCB, "Callback and return give the same result"
+			t.end()
+
 # # console.log Publication.schema.paths.type
 # # Publication.jsonldTBox {profile:(err, data) ->
 # #         if err 
