@@ -25,7 +25,8 @@ module.exports = class JsonldSchemaFactory
 		@apiPrefix      or= '/api/v1'
 		@schemaPrefix   or= "/schema"
 		@jsonldRapper or= new JsonldRapper(
-			baseURI: @baseURI
+			# baseURI: "#{@baseURI}#{@schemaPrefix}/"
+			baseURI: "_-_o_-_"
 			expandContext: @curie.namespaces('jsonld')
 		)
 
@@ -46,12 +47,13 @@ module.exports = class JsonldSchemaFactory
 		mongooseOptions['jsonldFactory'] = @
 
 		# JSON-LD infos about the class
-		schemaContext = {}
 		classUri = @curie.shorten @uriForClass(className)
-		schemaContext[classUri] = {}
+		schemaContext = {
+			'@id': classUri
+		}
 		for ctxPropname, ctxPropDef of schemaDef['@context']
-			schemaContext[classUri][ctxPropname] = ctxPropDef
-		schemaContext[classUri]['rdf:type'] or= ['owl:class']
+			schemaContext[ctxPropname] = ctxPropDef
+		schemaContext['rdf:type'] or= [{'@id': 'owl:Thing'}]
 
 		# Remove @context from the schema definition and move it to the schema options
 		delete schemaDef['@context']
@@ -91,25 +93,27 @@ module.exports = class JsonldSchemaFactory
 				pc['rdf:type'] or= []
 				if typeof pc['rdf:type'] is 'string'
 					pc['rdf:type'] = [pc['rdf:type']]
-				pc['rdf:type'].push 'rdfs:Property'
+				pc['rdf:type'].push {'@id': 'rdfs:Property'}
 
 				# enum values -> owl:oneOf
 				enumValues = propDef.enum
 				if enumValues and enumValues.length
 					pc['rdfs:range'] = {
 						'owl:oneOf': enumValues
-						'@type': 'rdfs:Datatype'
+						'@type': 'xsd:string'
 					}
 
 				# schema:domainIncludes (rdfs:domain)
-				propDef['schema:domainIncludes'] or= []
-				propDef['schema:domainIncludes'].push {'@id': classUri}
+				pc['schema:domainIncludes'] or= []
+				pc['schema:domainIncludes'].push {'@id': classUri}
 
 				propDef['@context'] = pc
 			else 
 				throw new Error('UNHANDLED @context being a string')
 
-		return new Schema(schemaDef, mongooseOptions)
+		schema = new Schema(schemaDef, mongooseOptions)
+		schema.plugin(@createPlugin())
+		return schema
 
 	listAssertions: (doc, opts) ->
 		factory = doc.schema.options.jsonldFactory
@@ -130,8 +134,10 @@ module.exports = class JsonldSchemaFactory
 		# obj['@context'] = Merge(opts.context, obj['@context'])
 		# obj['@context'] = 'http://prefix.cc/context'
 
-		if doc.schema.options['@context']
-			obj['@context'] = doc.schema.options['@context']
+		schemaContext = doc.schema.options['@context']
+		if schemaContext
+			obj['@type'] = schemaContext['@id']
+			obj['@context'][obj['@type']] = schemaContext
 
 		# Walk the schema path definitions, adding their @context under their
 		# path into the context for the schema
@@ -162,6 +168,14 @@ module.exports = class JsonldSchemaFactory
 
 		return onto
 
+	_convert : (doc, opts, cb) ->
+		if typeof opts == 'function' then [cb, opts] = [opts, {}]
+		if not opts or not (opts['to'] or opts['profile'])
+			return cb null, doc
+		else if opts['profile']
+			opts['to'] = 'jsonld'
+		return @jsonldRapper.convert doc, 'jsonld', opts['to'], opts, cb
+
 	createPlugin: (schema, opts) ->
 		factory = @
 		opts or= {}
@@ -176,14 +190,14 @@ module.exports = class JsonldSchemaFactory
 				if typeof innerOpts == 'function' then [cb, innerOpts] = [innerOpts, {}]
 				doc = @
 				innerOpts = Merge(opts, innerOpts)
-				return factory.listAssertions(doc, innerOpts, cb)
+				return factory._convert factory.listAssertions(doc, innerOpts, cb), innerOpts, cb
 
 			schema.statics.jsonldTBox = (innerOpts, cb) ->
 				if typeof innerOpts == 'function' then [cb, innerOpts] = [innerOpts, {}]
 				model = @
 				# console.log model.schema.options
 				innerOpts = Merge(opts, innerOpts)
-				return factory.listDescription(model, innerOpts, cb)
+				return factory._convert factory.listDescription(model, innerOpts, cb), innerOpts, cb
 
 
 

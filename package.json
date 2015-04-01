@@ -32,8 +32,8 @@
     "tapes": "^0.4.1"
   },
   "dependencies": {
-    "jsonld-common-contexts": "0.0.6",
-    "jsonld-rapper": "*",
+    "jsonld-common-contexts": "0.0.8",
+    "jsonld-rapper": "0.0.9",
     "merge": "^1.2.0"
   }
 }
