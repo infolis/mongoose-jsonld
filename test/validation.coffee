@@ -1,21 +1,28 @@
 test = require 'tapes'
 validators = require '../src/validators'
+console.log validators
 
 allTests = {
-	validateJavaClass: [
+	JavaClass: [
 		['foo.bar']
 		['foo.b/a@@@@r..', 'weird chars']
 		['foo.b.',         'trailing dot']
 	]
-	validateURI: [
+	URI: [
 		['http://google.com']
 		['https://foobar.quux']
 		['http://foo bar', 'space']
 	]
-	validateMD5: [
+	MD5: [
 		['00000000000000000000000000000000']
 		['1237nfdkjewnfkjewnfewjkfewnewfew', 'wrong chars']
 		['1237nfdkjewnfkjewnfewjkfewnfkjewnfkewfew', '40 chars']
+	]
+	UUID: [
+		['63ce13a3-6c87-4608-865f-cbf12fef3ee9']
+		['63ce13a3-6c87-4608-865f-cbf12fef3ee', 'too short']
+		['63ce13a3-6c87-4608-865f-cbf12fef3ee99', 'too long']
+		['63ce13a3-6c87-4608-865f-Ybf12fef3ee9', 'bad alpha chars']
 	]
 }
 

@@ -136,6 +136,10 @@ module.exports = class JsonldSchemaFactory
 		mongooseOptions or= {}
 		mongooseOptions['jsonldFactory'] = @
 
+		schemaDef['_id'] = {
+			'type': 'String'
+			'validate': 'validate
+
 		# JSON-LD infos about the class
 		classUri = @curie.shorten @uriForClass(className)
 		schemaContext = {
