@@ -26,6 +26,7 @@ pub1 = new Publication(
 	title: "The Art of Foo"
 	type: 'article'
 )
+# Whings
 # factory.jsonldRapper.convert pub1.jsonldABox(), 'jsonld', 'turtle', (err, converted) ->
 #     console.log converted
 # console.log pub1.jsonldABox()
@@ -91,6 +92,10 @@ test 'shorten expand with objects', (t) ->
 		t.ok (data.indexOf('dc:frobozz dc:fnep ;') > -1), "Contains correct Turtle"
 		t.end()
 
+test 'Save', (t) ->
+	pub1.save (err, saved) ->
+		t.ok saved._id, "has an id"
+		t.end()
 
 # # console.log Publication.schema.paths.type
 # # Publication.jsonldTBox {profile:(err, data) ->
