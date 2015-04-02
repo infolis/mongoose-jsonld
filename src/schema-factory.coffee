@@ -1,5 +1,7 @@
-Merge          = require 'merge'
-Mongoose       = require 'mongoose'
+Merge    = require 'merge'
+Mongoose = require 'mongoose'
+Uuid     = require 'node-uuid'
+
 CommonContexts = require 'jsonld-common-contexts'
 JsonldRapper   = require 'jsonld-rapper'
 ExpressJSONLD  = require 'express-jsonld'
@@ -112,6 +114,20 @@ module.exports = class JsonldSchemaFactory
 			# Every model can have an '@id' field
 			schema.add(atIdSchema)
 
+			# We enforce UUIDs for all the things
+			schema.add '_id' : {
+				'type': 'String'
+				'validate': factory.validators.UUID
+			}
+			schema.pre 'save', (next) ->
+				doc = this
+				console.log 'fba'
+				if doc.isNew
+					doc.setValue '_id', Uuid.v1()
+				# console.log doc
+				# next new Error('Foo')
+				next()
+
 			# Allow export of the Linked Data description of the schema
 			schema.methods.jsonldABox = (innerOpts, cb) ->
 				if typeof innerOpts == 'function' then [cb, innerOpts] = [innerOpts, {}]
@@ -135,10 +151,6 @@ module.exports = class JsonldSchemaFactory
 	createSchema : (className, schemaDef, mongooseOptions) ->
 		mongooseOptions or= {}
 		mongooseOptions['jsonldFactory'] = @
-
-		schemaDef['_id'] = {
-			'type': 'String'
-			'validate': 'validate
 
 		# JSON-LD infos about the class
 		classUri = @curie.shorten @uriForClass(className)

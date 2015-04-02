@@ -35,6 +35,7 @@
     "express-jsonld": "0.0.5",
     "jsonld-common-contexts": "0.0.8",
     "jsonld-rapper": "0.0.9",
-    "merge": "^1.2.0"
+    "merge": "^1.2.0",
+    "node-uuid": "^1.4.3"
   }
 }
