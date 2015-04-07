@@ -44,40 +44,61 @@ module.exports = class JsonldSchemaFactory
 	_lcfirst : (str) ->
 		str.substr(0,1).toLowerCase() + str.substr(1)
 
-	_listAssertions: (doc, opts) ->
+	_listAssertions: (doc, opts, ret = {}, depth = 0) ->
 		factory = doc.schema.options.jsonldFactory
 		opts = Merge @opts, opts
+		# opts.keep_id or= true
 
-		obj = doc.toObject()
-		actualFields = Object.keys(obj)
+		flatDoc = doc
 
 		# Set the @id to a dereferenceable URI
-		obj['@id'] = factory.uriForInstance(doc)
+		ret['@id'] = factory.uriForInstance(doc)
 
 		# Delete '_id' unless explicitly kept
-		unless opts.keep_id
-			delete obj._id
+		# if opts.keep_id
+		#     ret._id = doc._id
 
 		# TODO is this the right behavior
-		obj['@context'] = {}
-		# obj['@context'] = Merge(opts.context, obj['@context'])
-		# obj['@context'] = 'http://prefix.cc/context'
+		ret['@context'] or= {}
+		# doc['@context'] = Merge(opts.context, doc['@context'])
+		# doc['@context'] = 'http://prefix.cc/context'
 
 		schemaContext = doc.schema.options['@context']
 		if schemaContext
-			obj['@type'] = schemaContext['@id']
-			obj['@context'][obj['@type']] = schemaContext
+			ret['@type'] = schemaContext['@id']
+			ret['@context'][ret['@type']] = schemaContext
 
 		# Walk the schema path definitions, adding their @context under their
 		# path into the context for the schema
-		for schemaPathName in actualFields
+		for schemaPathName of doc.toJSON()
 			schemaPathDef = doc.schema.paths[schemaPathName]
 			# skip internal fields
-			continue if /^_/.test schemaPathName
+			continue if /^[\$_]/.test schemaPathName
 			propContext = schemaPathDef.options?['@context']
 			continue unless propContext
-			obj['@context'][schemaPathName] = propContext
-		return obj
+			ret['@context'][schemaPathName] = propContext
+
+		for propName of doc.toJSON()
+			continue if /^[\$_]/.test propName
+			propDef = doc[propName]
+			# console.log propName
+			if Array.isArray propDef
+				for subDoc in propDef
+					# XXX recursive
+					# console.log propName
+					# console.log subDoc
+					# console.log "DIE"
+					ret[propName] = factory._listAssertions(subDoc, opts, ret[propName], depth + 1)
+			# else if typeof propDef is 'object'
+				# XXX recursive
+				# console.log "LIVE"
+				# console.log propName
+				# console.log propDef
+				# ret[propName] = factory._listAssertions(propDef, opts, ret)
+			else
+				ret[propName] = flatDoc[propName]
+
+		return ret
 
 	_listDescription: (model, opts) ->
 		onto = []
@@ -92,17 +113,21 @@ module.exports = class JsonldSchemaFactory
 			propCtx = schemaPathDef.options?['@context']
 			continue unless propCtx
 			propCtx['@id'] = @curie.shorten @uriForClass(schemaPathName)
-			propCtx['@type'] = 'rdfs:Property'
+			# propCtx['@type'] = 'rdfs:Property'
 			onto.push propCtx
 
 		return onto
+
+	_lastUriSegment : (uri) ->
+		return uri.substr(uri.lastIndexOf('/') + 1)
 
 	_convert : (doc, opts, cb) ->
 		if typeof opts == 'function' then [cb, opts] = [opts, {}]
 		if not opts or not (opts['to'] or opts['profile'])
 			return cb null, doc
-		else if opts['profile']
+		else if not opts['to'] and opts['profile']
 			opts['to'] = 'jsonld'
+		# console.log doc
 		return @jsonldRapper.convert doc, 'jsonld', opts['to'], opts, cb
 
 	createPlugin: (schema, opts) ->
@@ -116,16 +141,14 @@ module.exports = class JsonldSchemaFactory
 
 			# We enforce UUIDs for all the things
 			schema.add '_id' : {
-				'type': 'String'
-				'validate': factory.validators.UUID
+				type: 'String'
+				validate: factory.validators.UUID
+				# required: yes
 			}
 			schema.pre 'save', (next) ->
 				doc = this
-				console.log 'fba'
 				if doc.isNew
 					doc.setValue '_id', Uuid.v1()
-				# console.log doc
-				# next new Error('Foo')
 				next()
 
 			# Allow export of the Linked Data description of the schema
@@ -134,9 +157,9 @@ module.exports = class JsonldSchemaFactory
 				doc = @
 				innerOpts = Merge(opts, innerOpts)
 				if cb
-					return factory._convert factory._listAssertions(doc, innerOpts, cb), innerOpts, cb
+					return factory._convert factory._listAssertions(doc, innerOpts), innerOpts, cb
 				else
-					return factory._listAssertions(doc, innerOpts, cb)
+					return factory._listAssertions(doc, innerOpts)
 
 			schema.statics.jsonldTBox = (innerOpts, cb) ->
 				if typeof innerOpts == 'function' then [cb, innerOpts] = [innerOpts, {}]
@@ -144,9 +167,13 @@ module.exports = class JsonldSchemaFactory
 				# console.log model.schema.options
 				innerOpts = Merge(opts, innerOpts)
 				if cb
-					return factory._convert factory._listDescription(model, innerOpts, cb), innerOpts, cb
+					return factory._convert factory._listDescription(model, innerOpts), innerOpts, cb
 				else
-					return factory._listDescription(model, innerOpts, cb)
+					return factory._listDescription(model, innerOpts)
+
+	createModel : (dbConnection, className, schemaDef, mongooseOptions) ->
+		schema = @createSchema(className, schemaDef, mongooseOptions)
+		dbConnection.model(className, schema)
 
 	createSchema : (className, schemaDef, mongooseOptions) ->
 		mongooseOptions or= {}
@@ -199,11 +226,12 @@ module.exports = class JsonldSchemaFactory
 				else
 					pc[@curie.shorten @curie.expand x] = y
 
-			# rdf:type rdfs:Property
-			pc['rdf:type'] or= []
-			if typeof pc['rdf:type'] is 'string'
-				pc['rdf:type'] = [pc['rdf:type']]
-			pc['rdf:type'].push {'@id': 'rdfs:Property'}
+			# TODO this was wrong
+			# # rdf:type rdfs:Property
+			# pc['@type'] or= []
+			# if typeof pc['@type'] is 'string'
+			#     pc['@type'] = [pc['@type']]
+			# pc['@type'].push {'@id': 'rdfs:Property'}
 
 			# enum values -> owl:oneOf
 			enumValues = propDef.enum
@@ -212,6 +240,14 @@ module.exports = class JsonldSchemaFactory
 					'owl:oneOf': enumValues
 					'@type': 'xsd:string'
 				}
+
+			if not pc['rdfs:range']
+				switch propDef.type
+					when String, 'String'
+						pc['rdfs:range'] = {'@id': 'xsd:string'}
+					else
+						# XXX do nothing
+						null
 
 			# schema:domainIncludes (rdfs:domain)
 			pc['schema:domainIncludes'] or= []

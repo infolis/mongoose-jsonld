@@ -19,8 +19,8 @@ factory = new SchemaFactory(
 
 schemaDefinitions = require '../data/infolis-schema'
 
-PublicationSchema = factory.createSchema('Publication', schemaDefinitions.Publication)
-Publication = Mongoose.model('Publication', PublicationSchema)
+Publication = factory.createModel(Mongoose, 'Publication', schemaDefinitions.Publication)
+Person = factory.createModel(Mongoose, 'Person', schemaDefinitions.Person)
 
 pub1 = new Publication(
 	title: "The Art of Foo"
@@ -92,10 +92,58 @@ test 'shorten expand with objects', (t) ->
 		t.ok (data.indexOf('dc:frobozz dc:fnep ;') > -1), "Contains correct Turtle"
 		t.end()
 
-test 'Save', (t) ->
+test 'Save flat', (t) ->
+	Mongoose.connect('localhost:27018')
 	pub1.save (err, saved) ->
+		t.notOk err, "No error saving"
 		t.ok saved._id, "has an id"
+		Mongoose.disconnect()
 		t.end()
+
+test 'Validate', (t) ->
+	pub2 = new Publication(
+		title: 'bar'
+		type: '!!invalid on purpose!!'
+	)
+	pub2.validate (err) ->
+		t.ok err, 'Should have error'
+		t.ok err.errors.type, 'should be on "type"'
+		t.equals err.errors.type.type, 'enum', "because value isn't from the enum"
+		t.end()
+
+test 'Save nested', (t) ->
+	Mongoose.connect('localhost:27018')
+	author = new Person
+		surname: 'Doe'
+		given: 'John'
+	pub = new Publication
+		title: 'Foo!'
+	author.save (err) ->
+		pub.author.push author._id
+		pub.save (err) -> 
+			Publication
+				.findOne _id: pub._id
+				.populate('author')
+				.exec (err, found) ->
+					# Publication.jsonldTBox { to: 'text/turtle' }, (err, rdf) ->
+					found.jsonldABox { to: 'turtle' }, (err, rdf) ->
+					# found.jsonldABox { to: 'jsonld' }, (err, rdf) ->
+					 # console.log found.jsonldABox()
+					# console.log JSON.stringify(found.jsonldABox(), null, 2)
+					# found.jsonldABox (err, rdf) ->
+						console.log err
+						console.log rdf
+						# console.log JSON.stringify(rdf, null, 2)
+						Mongoose.disconnect()
+						t.end()
+
+	# pub3 = new Publication(pub3_def)
+	# console.log pub3.author
+	# pub3.validate (err) -> 
+	#     console.log err
+	# console.log pub3
+
+
 
 # # console.log Publication.schema.paths.type
 # # Publication.jsonldTBox {profile:(err, data) ->

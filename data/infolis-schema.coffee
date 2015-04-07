@@ -6,11 +6,12 @@ module.exports =
 		author:
 			'@context':
 				'@id': 'dc:creator'
-			type: [{ type: ObjectId, ref: 'Person' }]
+			type: [{ type: String, ref: 'Person' }]
 		name:
 			'@context':
 				'@id': 'dc:title'
 				'dc:description': 'Name of the Algorithm'
+				'@type': 'xsd:string'
 			type: String
 		lastModified:
 			'@context':
@@ -33,7 +34,7 @@ module.exports =
 		surname:
 			type: String
 			'@context':
-				'@context': 'foaf:'
+				'@id': 'foaf:surname'
 		given:
 			type: String
 			'@context':
@@ -45,7 +46,7 @@ module.exports =
 		author: 
 			'@context':
 				'@id': 'bibo:author'
-			type: [{ type: ObjectId, ref: 'Person' }]
+			type: [{ type: String, ref: 'Person' }]
 		title:
 			type: String
 			'@context':
