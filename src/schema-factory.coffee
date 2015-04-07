@@ -44,24 +44,19 @@ module.exports = class JsonldSchemaFactory
 	_lcfirst : (str) ->
 		str.substr(0,1).toLowerCase() + str.substr(1)
 
-	_listAssertions: (doc, opts, ret = {}, depth = 0) ->
+	_listAssertions: (doc, opts, depth = 0) ->
 		factory = doc.schema.options.jsonldFactory
 		opts = Merge @opts, opts
 		# opts.keep_id or= true
+		ret = {}
 
-		flatDoc = doc
+		flatDoc = doc.toJSON()
 
 		# Set the @id to a dereferenceable URI
 		ret['@id'] = factory.uriForInstance(doc)
 
-		# Delete '_id' unless explicitly kept
-		# if opts.keep_id
-		#     ret._id = doc._id
-
 		# TODO is this the right behavior
 		ret['@context'] or= {}
-		# doc['@context'] = Merge(opts.context, doc['@context'])
-		# doc['@context'] = 'http://prefix.cc/context'
 
 		schemaContext = doc.schema.options['@context']
 		if schemaContext
@@ -72,33 +67,74 @@ module.exports = class JsonldSchemaFactory
 		# path into the context for the schema
 		for schemaPathName of doc.toJSON()
 			schemaPathDef = doc.schema.paths[schemaPathName]
+			propDef = doc[schemaPathName]
+
 			# skip internal fields
 			continue if /^[\$_]/.test schemaPathName
-			propContext = schemaPathDef.options?['@context']
-			continue unless propContext
-			ret['@context'][schemaPathName] = propContext
 
-		for propName of doc.toJSON()
-			continue if /^[\$_]/.test propName
-			propDef = doc[propName]
+			# Add property data to the context
+			propContext = schemaPathDef.options?['@context']
+			if propContext
+				ret['@context'][schemaPathName] = propContext
+
 			# console.log propName
-			if Array.isArray propDef
+			# console.log schemaPathDef.options
+			schemaPathOptions = schemaPathDef.options
+			if @_isJoinSingle schemaPathOptions
+				# console.log "#{schemaPathName}: _isJoinSingle"
+				# console.log propDef
+				# XXX recursive
+				ret[schemaPathName] = factory._listAssertions(propDef, opts)
+			else if @_isJoinMulti schemaPathOptions
+				# console.log "#{schemaPathName}: _isJoinMulti"
+				ret[schemaPathName] = []
 				for subDoc in propDef
 					# XXX recursive
-					# console.log propName
-					# console.log subDoc
-					# console.log "DIE"
-					ret[propName] = factory._listAssertions(subDoc, opts, ret[propName], depth + 1)
-			# else if typeof propDef is 'object'
-				# XXX recursive
-				# console.log "LIVE"
-				# console.log propName
-				# console.log propDef
-				# ret[propName] = factory._listAssertions(propDef, opts, ret)
+					ret[schemaPathName].push factory._listAssertions(subDoc, opts, depth + 1)
 			else
-				ret[propName] = flatDoc[propName]
+				# console.log "#{schemaPathName}: standard: '#{flatDoc[schemaPathName]}'"
+				ret[schemaPathName] = flatDoc[schemaPathName]
+
+		# Delete '_id' unless explicitly kept
+		# if opts.keep_id
+		#     ret._id = doc._id
 
 		return ret
+
+	_createDocumentFromObject : (model, obj) ->
+		for schemaPathName of obj
+			schemaPathDef = model.schema.paths[schemaPathName]
+			schemaPathOptions = schemaPathDef.options
+			if @_isJoinSingle schemaPathOptions
+				obj[schemaPathName] = @_lastUriSegment(obj[schemaPathName])
+			else if @_isJoinMulti schemaPathOptions
+				for i in [0 ... obj[schemaPathName].length]
+					obj[schemaPathName][i] = @_lastUriSegment(obj[schemaPathName][i])
+		return new model(obj)
+
+	_findOneAndPopulate : (model, searchDoc, cb) ->
+		builder = model.findOne(searchDoc)
+		for schemaPathName, schemaPathDef of model.schema.paths
+			schemaPathType = schemaPathDef.options
+			if @_isJoinSingle(schemaPathType) or @_isJoinMulti(schemaPathType)
+				builder.populate(schemaPathName)
+		return builder.exec cb
+
+	_isJoinMulti : (def) ->
+		typeof(def) is 'object' and
+		def.type and
+		Array.isArray(def.type) and
+		def.type[0] and
+		typeof def.type[0] is 'object' and
+		def.type[0].ref and
+		def.type[0].type
+
+	_isJoinSingle : (def) ->
+		return typeof(def) is 'object' and
+			not(Array.isArray def) and
+			def.ref and
+			def.type
+
 
 	_listDescription: (model, opts) ->
 		onto = []
@@ -121,6 +157,13 @@ module.exports = class JsonldSchemaFactory
 	_lastUriSegment : (uri) ->
 		return uri.substr(uri.lastIndexOf('/') + 1)
 
+	# _isDBRef : (data) ->
+	#     if not def
+	#         return false
+	#     else if Array.isArray(def)
+
+
+
 	_convert : (doc, opts, cb) ->
 		if typeof opts == 'function' then [cb, opts] = [opts, {}]
 		if not opts or not (opts['to'] or opts['profile'])
@@ -131,7 +174,7 @@ module.exports = class JsonldSchemaFactory
 		return @jsonldRapper.convert doc, 'jsonld', opts['to'], opts, cb
 
 	createPlugin: (schema, opts) ->
-		factory = @
+		factory = this
 		opts or= {}
 		opts = Merge(@opts, opts)
 		return (schema) ->
@@ -147,23 +190,26 @@ module.exports = class JsonldSchemaFactory
 			}
 			schema.pre 'save', (next) ->
 				doc = this
-				if doc.isNew
+				if doc.isNew and not doc._id
 					doc.setValue '_id', Uuid.v1()
 				next()
 
 			# Allow export of the Linked Data description of the schema
 			schema.methods.jsonldABox = (innerOpts, cb) ->
 				if typeof innerOpts == 'function' then [cb, innerOpts] = [innerOpts, {}]
-				doc = @
+				doc = this
 				innerOpts = Merge(opts, innerOpts)
 				if cb
 					return factory._convert factory._listAssertions(doc, innerOpts), innerOpts, cb
 				else
 					return factory._listAssertions(doc, innerOpts)
 
+			schema.methods.uri = () ->
+				return factory.uriForInstance(this)
+
 			schema.statics.jsonldTBox = (innerOpts, cb) ->
 				if typeof innerOpts == 'function' then [cb, innerOpts] = [innerOpts, {}]
-				model = @
+				model = this
 				# console.log model.schema.options
 				innerOpts = Merge(opts, innerOpts)
 				if cb
@@ -171,13 +217,19 @@ module.exports = class JsonldSchemaFactory
 				else
 					return factory._listDescription(model, innerOpts)
 
+			schema.statics.findOneAndPopulate = (searchDoc, cb) ->
+				factory._findOneAndPopulate(this, searchDoc, cb)
+
+			schema.statics.fromJSON = (obj, cb) ->
+				factory._createDocumentFromObject(this, obj, cb)
+
 	createModel : (dbConnection, className, schemaDef, mongooseOptions) ->
 		schema = @createSchema(className, schemaDef, mongooseOptions)
 		dbConnection.model(className, schema)
 
 	createSchema : (className, schemaDef, mongooseOptions) ->
 		mongooseOptions or= {}
-		mongooseOptions['jsonldFactory'] = @
+		mongooseOptions['jsonldFactory'] = this
 
 		# JSON-LD infos about the class
 		classUri = @curie.shorten @uriForClass(className)
@@ -277,7 +329,7 @@ module.exports = class JsonldSchemaFactory
 		return id
 
 	_conneg : (req, res, next) ->
-		self = @
+		self = this
 		if not req.mongooseDoc
 			res.end()
 		else if not req.headers.accept or req.headers.accept in ['*/*', 'application/json']
@@ -353,7 +405,7 @@ module.exports = class JsonldSchemaFactory
 			next()
 
 	_POST_Resource: (model, req, res, next) ->
-		self = @
+		self = this
 		# console.log req.body
 		doc = new model(req.body)
 		console.log "POST new '#{model.modelName}' resource: #{doc.toJSON()}"
@@ -392,7 +444,7 @@ module.exports = class JsonldSchemaFactory
 		if not nextMiddleware
 			nextMiddleware = @_conneg.bind(@)
 
-		self = @
+		self = this
 		# basePath = "#{@apiPrefix}/#{model.collection.name}"
 		modelName = model.modelName
 		_lcfirst = (str) -> str.substr(0,1).toLowerCase() + str.substr(1)
@@ -430,7 +482,7 @@ module.exports = class JsonldSchemaFactory
 
 		basePath = @schemaPrefix
 
-		self = @
+		self = this
 		do (self) =>
 			path = "#{@schemaPrefix}/#{model.modelName}"
 			console.log "Binding schema handler #{path}"

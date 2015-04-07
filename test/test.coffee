@@ -1,8 +1,9 @@
-Fs = require 'fs'
-Async = require 'async'
-test = require 'tapes'
-Mongoose = require 'mongoose'
+Fs            = require 'fs'
+Async         = require 'async'
+test          = require 'tape'
+Mongoose      = require 'mongoose'
 SchemaFactory = require '../src'
+Uuid          = require 'node-uuid'
 dump = (stuff) ->
 	console.log JSON.stringify stuff, null, 2
 
@@ -111,7 +112,55 @@ test 'Validate', (t) ->
 		t.equals err.errors.type.type, 'enum', "because value isn't from the enum"
 		t.end()
 
-test 'Save nested', (t) ->
+test '_isJoinSingle', (t) ->
+	t.notOk factory._isJoinSingle()
+	t.notOk factory._isJoinSingle(42)
+	t.notOk factory._isJoinSingle({})
+	t.notOk factory._isJoinSingle([])
+	t.notOk factory._isJoinSingle({typex: String, ref: 'User'})
+	t.ok factory._isJoinSingle({type: String, ref: 'User'})
+	t.end()
+
+test '_isJoinMulti', (t) ->
+	t.notOk factory._isJoinMulti()
+	t.notOk factory._isJoinMulti(42)
+	t.notOk factory._isJoinMulti({})
+	t.notOk factory._isJoinMulti([])
+	t.notOk factory._isJoinMulti({type: String, ref: 'User'})
+	t.ok factory._isJoinMulti(type: [{type: String, ref: 'User'}])
+	t.notOk factory._isJoinMulti([{xtype: String, ref: 'User'}])
+	t.end()
+
+test '_createDocumentFromObject', (t) ->
+	Mongoose.connect('localhost:27018')
+	shouldBeUUID = Uuid.v4()
+	pers = new Person 
+		given: "Slog"
+		_id: shouldBeUUID
+	# console.log pers.uri()
+	pub = Publication.fromJSON
+		_id: Uuid.v1()
+		title: 'Bar!'
+		author: pers.uri()
+		reader: [pers.uri(), Uuid.v4()]
+	t.equals pub.author, shouldBeUUID
+	pers.save (err, persSaved) ->
+		t.notOk err
+		t.equals persSaved._id, shouldBeUUID
+		pub.save (err, saved) ->
+			t.notOk err
+			# console.log saved
+			# console.log saved.author
+			Publication.findOneAndPopulate {_id: pub._id}, (err, found) ->
+				t.notOk err
+				t.equals found.author._id, shouldBeUUID
+				# console.log found.author
+				# console.log found
+				Mongoose.disconnect()
+				t.end()
+
+
+test '_findOneAndPopulate', (t) ->
 	Mongoose.connect('localhost:27018')
 	author = new Person
 		surname: 'Doe'
@@ -119,23 +168,15 @@ test 'Save nested', (t) ->
 	pub = new Publication
 		title: 'Foo!'
 	author.save (err) ->
-		pub.author.push author._id
-		pub.save (err) -> 
-			Publication
-				.findOne _id: pub._id
-				.populate('author')
-				.exec (err, found) ->
-					# Publication.jsonldTBox { to: 'text/turtle' }, (err, rdf) ->
-					found.jsonldABox { to: 'turtle' }, (err, rdf) ->
-					# found.jsonldABox { to: 'jsonld' }, (err, rdf) ->
-					 # console.log found.jsonldABox()
-					# console.log JSON.stringify(found.jsonldABox(), null, 2)
-					# found.jsonldABox (err, rdf) ->
-						console.log err
-						console.log rdf
-						# console.log JSON.stringify(rdf, null, 2)
-						Mongoose.disconnect()
-						t.end()
+		pub.author = author._id
+		for i in [0...3]
+			pub.reader.push author._id
+		pub.save (err) ->
+			Publication.findOneAndPopulate pub, (err, found) ->
+				found.jsonldABox {to:'turtle'}, (err, rdf) ->
+					t.equals rdf.split(author.uri()).length, 6
+					Mongoose.disconnect()
+					t.end()
 
 	# pub3 = new Publication(pub3_def)
 	# console.log pub3.author

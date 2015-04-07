@@ -46,6 +46,12 @@ module.exports =
 		author: 
 			'@context':
 				'@id': 'bibo:author'
+			type: String
+			ref: 'Person'
+		reader: 
+			'@context':
+				'@id': 'dc:subject'
+				'@container': '@list'
 			type: [{ type: String, ref: 'Person' }]
 		title:
 			type: String
