@@ -3,6 +3,7 @@ _validators =
 	URI:       /^https?:\/\/[^\s]+$/
 	UUID:      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 	MD5:       /^[a-f0-9]{32}$/
+	SHA1:       /^[a-f0-9]{40}$/
 	JavaClass: [ /^([a-zA-Z_][a-zA-Z\d_]*\.)*[a-zA-Z_][a-zA-Z\d_]*$/, "Not a valid fully-qualified java path" ]
 
 for type, v of _validators

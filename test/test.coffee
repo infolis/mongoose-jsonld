@@ -142,7 +142,7 @@ test '_createDocumentFromObject', (t) ->
 		_id: Uuid.v1()
 		title: 'Bar!'
 		author: pers.uri()
-		reader: [pers.uri(), Uuid.v4()]
+		reader: [pers.uri(), shouldBeUUID, Uuid.v4()]
 	t.equals pub.author, shouldBeUUID
 	pers.save (err, persSaved) ->
 		t.notOk err
@@ -154,6 +154,7 @@ test '_createDocumentFromObject', (t) ->
 			Publication.findOneAndPopulate {_id: pub._id}, (err, found) ->
 				t.notOk err
 				t.equals found.author._id, shouldBeUUID
+				t.equals found.reader.length, 2
 				# console.log found.author
 				# console.log found
 				Mongoose.disconnect()
