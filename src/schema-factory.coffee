@@ -3,8 +3,8 @@ Mongoose = require 'mongoose'
 Uuid     = require 'node-uuid'
 
 CommonContexts = require 'jsonld-common-contexts'
-JsonldRapper   = require 'jsonld-rapper'
-ExpressJSONLD  = require 'express-jsonld'
+JsonldRapper   = require 'jsonld-rapper/src'
+ExpressJSONLD  = require 'express-jsonld/src'
 
 Validators     = require './validators'
 TypeMap        = require './typemap'
@@ -15,31 +15,38 @@ atIdSchema = {
 	}
 }
 
-module.exports = class JsonldSchemaFactory
+module.exports = class MongooseJSONLD
 
 	constructor : (opts = {}) ->
 		opts or= {}
-		@[k] = v for k,v of opts
+		# @[k] = v for k,v of opts
 
-		@expandContexts or= ['prefix.cc']
-		@curie          or= CommonContexts.withContext(@expandContexts)
-		@typeMap        or= Merge(TypeMap, opts.typemap)
-		@validators     or= Merge(Validators, opts.validators)
-		@baseURI        or= 'http://EXAMPLE.ORG'
-		@apiPrefix      or= '/api/v1'
-		@schemaPrefix   or= "/schema"
+		opts.expandContexts or= ['prefix.cc']
+		@curie        or= CommonContexts.withContext(opts.expandContexts)
+		@typeMap      = Merge(TypeMap, opts.typemap)
+		@validators   = Merge(Validators, opts.validators)
+		@baseURI      or= 'http://EXAMPLE.ORG'
+		@apiPrefix    or= '/api/v1'
+		@schemaPrefix or= "/schema"
 		@jsonldRapper or= new JsonldRapper(
 			# baseURI: "#{@baseURI}#{@schemaPrefix}/"
 			baseURI: "_-_o_-_"
-			expandContext: @curie.namespaces('jsonld')
+			curie: @curie
 		)
-		@expressJsonldMiddleware = new ExpressJSONLD(@).getMiddleware()
+		expressJSONLD = new ExpressJSONLD(
+			jsonldRapper: @jsonldRapper
+		)
+		@expressJsonldMiddleware = expressJSONLD.getMiddleware()
+		# console.log @curie.namespaces('jsonld')
+		# console.log @jsonldRapper.curie.namespaces('jsonld')
+		# console.log expressJSONLD.jsonldRapper.curie.namespaces('jsonld')
+		# console.log @jsonldRapper.curie.expand('omnom:File')
 
 		@uriForClass or= (short) ->
 			return "#{@baseURI}#{@schemaPrefix}/#{short}"
 
 		@uriForInstance or= (doc) ->
-			return "#{@baseURI}#{@apiPrefix}/#{doc.constructor.collection.name}/#{doc._id}"
+			return "#{@baseURI}#{@apiPrefix}/#{@_lcfirst doc.constructor.modelName}/#{doc._id}"
 
 	_lcfirst : (str) ->
 		str.substr(0,1).toLowerCase() + str.substr(1)
@@ -469,7 +476,7 @@ module.exports = class JsonldSchemaFactory
 			do (methodAndPath, handle, nextMiddleware) ->
 				expressMethod = methodAndPath.substr(0, methodAndPath.indexOf(' ')).toLowerCase()
 				path = methodAndPath.substr(methodAndPath.indexOf(' ') + 1)
-				console.log "#{expressMethod} '#{path}'"
+				# console.log "#{expressMethod} '#{path}'"
 				app[expressMethod](
 					path
 					(req, res, next) -> handle.apply(self, [model, req, res, next])
@@ -478,7 +485,7 @@ module.exports = class JsonldSchemaFactory
 
 	injectSchemaHandlers : (app, model, nextMiddleware) ->
 		if not nextMiddleware
-			nextMiddleware = @_conneg.bind(@)
+			nextMiddleware = @_conneg.bind(this)
 
 		basePath = @schemaPrefix
 
@@ -486,12 +493,10 @@ module.exports = class JsonldSchemaFactory
 		do (self) =>
 			path = "#{@schemaPrefix}/#{model.modelName}"
 			console.log "Binding schema handler #{path}"
-			app.get path,
-				(req, res) ->
-					req.jsonld = model.schema.options['@context']
-					if not req.headers.accept or req.headers.accept in ['*/*', 'application/json']
-						res.send JSON.stringify(req.jsonld, null, 2)
-					else
-						self.expressJsonldMiddleware(req, res)
-
-
+			app.get path, (req, res, next) ->
+				req.jsonld = model.schema.options['@context']
+				console.log req.jsonld
+				if not req.headers.accept or req.headers.accept in ['*/*', 'application/json']
+					res.send JSON.stringify(req.jsonld, null, 2)
+				else
+					self.expressJsonldMiddleware(req, res, next)
