@@ -15,11 +15,13 @@ atIdSchema = {
 	}
 }
 
+INTERNAL_FIELD_REGEX=/^[\$_]/
+
 module.exports = class MongooseJSONLD
 
 	constructor : (opts = {}) ->
 		opts or= {}
-		# @[k] = v for k,v of opts
+		@[k] = v for k,v of opts
 
 		opts.expandContexts or= ['prefix.cc']
 		@curie        or= CommonContexts.withContext(opts.expandContexts)
@@ -30,17 +32,13 @@ module.exports = class MongooseJSONLD
 		@schemaPrefix or= "/schema"
 		@jsonldRapper or= new JsonldRapper(
 			# baseURI: "#{@baseURI}#{@schemaPrefix}/"
-			baseURI: "_-_o_-_"
+			baseURI: "(ツ)"
 			curie: @curie
 		)
 		expressJSONLD = new ExpressJSONLD(
 			jsonldRapper: @jsonldRapper
 		)
 		@expressJsonldMiddleware = expressJSONLD.getMiddleware()
-		# console.log @curie.namespaces('jsonld')
-		# console.log @jsonldRapper.curie.namespaces('jsonld')
-		# console.log expressJSONLD.jsonldRapper.curie.namespaces('jsonld')
-		# console.log @jsonldRapper.curie.expand('omnom:File')
 
 		@uriForClass or= (short) ->
 			return "#{@baseURI}#{@schemaPrefix}/#{short}"
@@ -77,15 +75,13 @@ module.exports = class MongooseJSONLD
 			propDef = doc[schemaPathName]
 
 			# skip internal fields
-			continue if /^[\$_]/.test schemaPathName
+			continue if INTERNAL_FIELD_REGEX.test schemaPathName
 
 			# Add property data to the context
 			propContext = schemaPathDef.options?['@context']
 			if propContext
 				ret['@context'][schemaPathName] = propContext
 
-			# console.log propName
-			# console.log schemaPathDef.options
 			schemaPathOptions = schemaPathDef.options
 			if @_isJoinSingle schemaPathOptions
 				# console.log "#{schemaPathName}: _isJoinSingle"
@@ -152,7 +148,7 @@ module.exports = class MongooseJSONLD
 		# Properties def
 		for schemaPathName, schemaPathDef of model.schema.paths
 			# skip internal fields
-			continue if /^_/.test schemaPathName
+			continue if INTERNAL_FIELD_REGEX.test schemaPathName
 			propCtx = schemaPathDef.options?['@context']
 			continue unless propCtx
 			propCtx['@id'] = @curie.shorten @uriForClass(schemaPathName)
@@ -177,7 +173,6 @@ module.exports = class MongooseJSONLD
 			return cb null, doc
 		else if not opts['to'] and opts['profile']
 			opts['to'] = 'jsonld'
-		# console.log doc
 		return @jsonldRapper.convert doc, 'jsonld', opts['to'], opts, cb
 
 	createPlugin: (schema, opts) ->
@@ -217,7 +212,6 @@ module.exports = class MongooseJSONLD
 			schema.statics.jsonldTBox = (innerOpts, cb) ->
 				if typeof innerOpts == 'function' then [cb, innerOpts] = [innerOpts, {}]
 				model = this
-				# console.log model.schema.options
 				innerOpts = Merge(opts, innerOpts)
 				if cb
 					return factory._convert factory._listDescription(model, innerOpts), innerOpts, cb
@@ -322,7 +316,6 @@ module.exports = class MongooseJSONLD
 		id = null
 		idType = model.schema.paths['_id'].instance
 		try
-			# console.log idType
 			switch idType
 				when "ObjectID"
 					if Mongoose.Types.ObjectId.isValid(toParse)
@@ -413,7 +406,6 @@ module.exports = class MongooseJSONLD
 
 	_POST_Resource: (model, req, res, next) ->
 		self = this
-		# console.log req.body
 		doc = new model(req.body)
 		console.log "POST new '#{model.modelName}' resource: #{doc.toJSON()}"
 		doc.save (err, newDoc) ->
@@ -494,9 +486,20 @@ module.exports = class MongooseJSONLD
 			path = "#{@schemaPrefix}/#{model.modelName}"
 			console.log "Binding schema handler #{path}"
 			app.get path, (req, res, next) ->
-				req.jsonld = model.schema.options['@context']
-				console.log req.jsonld
+				# req.jsonld = model.schema.options['@context']
+				req.jsonld = model.jsonldTBox()
+				# console.log req.jsonld
 				if not req.headers.accept or req.headers.accept in ['*/*', 'application/json']
 					res.send JSON.stringify(req.jsonld, null, 2)
 				else
 					self.expressJsonldMiddleware(req, res, next)
+			for propPath, propDef of model.schema.paths
+				continue if INTERNAL_FIELD_REGEX.test propPath
+				# console.log propPath
+				do (propDef) =>
+					app.get "#{@schemaPrefix}/#{propPath}", (req, res, next) ->
+						req.jsonld = propDef.options['@context']
+						if not req.headers.accept or req.headers.accept in ['*/*', 'application/json']
+							res.send JSON.stringify(req.jsonld, null, 2)
+						else
+							self.expressJsonldMiddleware(req, res, next)
