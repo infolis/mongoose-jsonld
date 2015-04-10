@@ -409,12 +409,14 @@ module.exports = class MongooseJSONLD
 		doc = new model(req.body)
 		console.log "POST new '#{model.modelName}' resource: #{doc.toJSON()}"
 		doc.save (err, newDoc) ->
-			if err
-				res.status 500
-				return next new Error(err)
+			if err or not newDoc
+				res.status 400
+				ret = new Error(err)
+				ret.cause = err
+				return next ret
 			else
 				res.status 201
-				res.header "Location", "/api/#{model.collection.name}/#{newDoc._id}" # XXX TODO
+				res.header 'Location', doc.uri()
 				req.mongooseDoc = newDoc
 				next()
 
