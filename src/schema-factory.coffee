@@ -1,10 +1,11 @@
+Async    = require 'async'
 Merge    = require 'merge'
 Mongoose = require 'mongoose'
 Uuid     = require 'node-uuid'
 
 CommonContexts = require 'jsonld-common-contexts'
-JsonldRapper   = require 'jsonld-rapper/src'
-ExpressJSONLD  = require 'express-jsonld/src'
+JsonldRapper   = require 'jsonld-rapper'
+ExpressJSONLD  = require 'express-jsonld'
 
 Validators     = require './validators'
 TypeMap        = require './typemap'
@@ -15,36 +16,31 @@ atIdSchema = {
 	}
 }
 
-INTERNAL_FIELD_REGEX=/^[\$_]/
-
-module.exports = class MongooseJSONLD
+module.exports = class JsonldSchemaFactory
 
 	constructor : (opts = {}) ->
 		opts or= {}
 		@[k] = v for k,v of opts
 
-		opts.expandContexts or= ['prefix.cc']
-		@curie        or= CommonContexts.withContext(opts.expandContexts)
-		@typeMap      = Merge(TypeMap, opts.typemap)
-		@validators   = Merge(Validators, opts.validators)
-		@baseURI      or= 'http://EXAMPLE.ORG'
-		@apiPrefix    or= '/api/v1'
-		@schemaPrefix or= "/schema"
+		@expandContexts or= ['prefix.cc']
+		@curie          or= CommonContexts.withContext(@expandContexts)
+		@typeMap        = Merge(TypeMap, opts.typeMap)
+		@validators     = Merge(Validators, opts.validators)
+		@baseURI        or= 'http://EXAMPLE.ORG'
+		@apiPrefix      or= '/api/v1'
+		@schemaPrefix   or= "/schema"
 		@jsonldRapper or= new JsonldRapper(
 			# baseURI: "#{@baseURI}#{@schemaPrefix}/"
-			baseURI: "(ツ)"
-			curie: @curie
+			baseURI: "_-_o_-_"
+			expandContext: @curie.namespaces('jsonld')
 		)
-		expressJSONLD = new ExpressJSONLD(
-			jsonldRapper: @jsonldRapper
-		)
-		@expressJsonldMiddleware = expressJSONLD.getMiddleware()
+		@expressJsonldMiddleware = new ExpressJSONLD(@).getMiddleware()
 
 		@uriForClass or= (short) ->
 			return "#{@baseURI}#{@schemaPrefix}/#{short}"
 
 		@uriForInstance or= (doc) ->
-			return "#{@baseURI}#{@apiPrefix}/#{@_lcfirst doc.constructor.modelName}/#{doc._id}"
+			return "#{@baseURI}#{@apiPrefix}/#{doc.constructor.collection.name}/#{doc._id}"
 
 	_lcfirst : (str) ->
 		str.substr(0,1).toLowerCase() + str.substr(1)
@@ -70,18 +66,24 @@ module.exports = class MongooseJSONLD
 
 		# Walk the schema path definitions, adding their @context under their
 		# path into the context for the schema
-		for schemaPathName of doc.toJSON()
-			schemaPathDef = doc.schema.paths[schemaPathName]
+		for schemaPathName of flatDoc
+			schemaPathDef = doc.schema.path schemaPathName
+			if not schemaPathDef
+				console.log("FISHY: #{schemaPathName} has no def")
+				throw("FISHY: #{schemaPathName} has no def")
+				continue
 			propDef = doc[schemaPathName]
 
 			# skip internal fields
-			continue if INTERNAL_FIELD_REGEX.test schemaPathName
+			continue if /^[\$_]/.test schemaPathName
 
 			# Add property data to the context
 			propContext = schemaPathDef.options?['@context']
 			if propContext
 				ret['@context'][schemaPathName] = propContext
 
+			# console.log propName
+			# console.log schemaPathDef.options
 			schemaPathOptions = schemaPathDef.options
 			if @_isJoinSingle schemaPathOptions
 				# console.log "#{schemaPathName}: _isJoinSingle"
@@ -95,7 +97,8 @@ module.exports = class MongooseJSONLD
 					# XXX recursive
 					ret[schemaPathName].push factory._listAssertions(subDoc, opts, depth + 1)
 			else
-				# console.log "#{schemaPathName}: standard: '#{flatDoc[schemaPathName]}'"
+				console.log flatDoc
+				console.log "#{schemaPathName}: standard: '#{flatDoc[schemaPathName]}'"
 				ret[schemaPathName] = flatDoc[schemaPathName]
 
 		# Delete '_id' unless explicitly kept
@@ -148,7 +151,7 @@ module.exports = class MongooseJSONLD
 		# Properties def
 		for schemaPathName, schemaPathDef of model.schema.paths
 			# skip internal fields
-			continue if INTERNAL_FIELD_REGEX.test schemaPathName
+			continue if /^_/.test schemaPathName
 			propCtx = schemaPathDef.options?['@context']
 			continue unless propCtx
 			propCtx['@id'] = @curie.shorten @uriForClass(schemaPathName)
@@ -173,6 +176,7 @@ module.exports = class MongooseJSONLD
 			return cb null, doc
 		else if not opts['to'] and opts['profile']
 			opts['to'] = 'jsonld'
+		# console.log doc
 		return @jsonldRapper.convert doc, 'jsonld', opts['to'], opts, cb
 
 	createPlugin: (schema, opts) ->
@@ -212,6 +216,7 @@ module.exports = class MongooseJSONLD
 			schema.statics.jsonldTBox = (innerOpts, cb) ->
 				if typeof innerOpts == 'function' then [cb, innerOpts] = [innerOpts, {}]
 				model = this
+				# console.log model.schema.options
 				innerOpts = Merge(opts, innerOpts)
 				if cb
 					return factory._convert factory._listDescription(model, innerOpts), innerOpts, cb
@@ -248,6 +253,15 @@ module.exports = class MongooseJSONLD
 		# JSON-LD info about properties
 		for propName, propDef of schemaDef
 
+			if not propDef['type']
+				continue
+
+			# handle dbrefs
+			if propDef['type'] and Array.isArray(propDef['type'])
+				typeDef = propDef['type'][0]
+				if typeDef and typeDef['type'] and typeof typeDef['type'] is 'string'
+					typeDef['type'] = @typeMap[typeDef['type']]
+
 			# handle validate functions
 			if propDef['validate'] and typeof propDef['validate'] is 'string'
 				validateFn = @validators[propDef['validate']]
@@ -255,12 +269,6 @@ module.exports = class MongooseJSONLD
 					throw new Error("No function handling #{propDef['validate']}")
 				else
 					propDef['validate'] = validateFn
-
-			# handle dbrefs
-			if propDef['type'] and Array.isArray(propDef['type'])
-				typeDef = propDef['type'][0]
-				if typeDef and typeDef['type'] and typeof typeDef['type'] is 'string'
-					typeDef['type'] = @typeMap[typeDef['type']]
 
 			# handling flat types
 			else if propDef['type'] and propDef['type'] and typeof propDef['type'] is 'string'
@@ -307,7 +315,9 @@ module.exports = class MongooseJSONLD
 			pc['schema:domainIncludes'].push {'@id': classUri}
 
 			propDef['@context'] = pc
+			# console.log propName
 
+		# console.log pc
 		schema = new Mongoose.Schema(schemaDef, mongooseOptions)
 		schema.plugin(@createPlugin())
 		return schema
@@ -316,6 +326,7 @@ module.exports = class MongooseJSONLD
 		id = null
 		idType = model.schema.paths['_id'].instance
 		try
+			# console.log idType
 			switch idType
 				when "ObjectID"
 					if Mongoose.Types.ObjectId.isValid(toParse)
@@ -406,17 +417,16 @@ module.exports = class MongooseJSONLD
 
 	_POST_Resource: (model, req, res, next) ->
 		self = this
+		# console.log req.body
 		doc = new model(req.body)
-		console.log "POST new '#{model.modelName}' resource: #{doc.toJSON()}"
+		console.log "POST new '#{model.modelName}' resource: #{JSON.stringify(doc.toJSON()).substr(0,100)}"
 		doc.save (err, newDoc) ->
-			if err or not newDoc
-				res.status 400
-				ret = new Error(err)
-				ret.cause = err
-				return next ret
+			if err
+				res.status 500
+				return next new Error(err)
 			else
 				res.status 201
-				res.header 'Location', doc.uri()
+				res.header "Location", "/api/#{model.collection.name}/#{newDoc._id}" # XXX TODO
 				req.mongooseDoc = newDoc
 				next()
 
@@ -470,7 +480,7 @@ module.exports = class MongooseJSONLD
 			do (methodAndPath, handle, nextMiddleware) ->
 				expressMethod = methodAndPath.substr(0, methodAndPath.indexOf(' ')).toLowerCase()
 				path = methodAndPath.substr(methodAndPath.indexOf(' ') + 1)
-				# console.log "#{expressMethod} '#{path}'"
+				console.log "#{expressMethod} '#{path}'"
 				app[expressMethod](
 					path
 					(req, res, next) -> handle.apply(self, [model, req, res, next])
@@ -479,7 +489,7 @@ module.exports = class MongooseJSONLD
 
 	injectSchemaHandlers : (app, model, nextMiddleware) ->
 		if not nextMiddleware
-			nextMiddleware = @_conneg.bind(this)
+			nextMiddleware = @_conneg.bind(@)
 
 		basePath = @schemaPrefix
 
@@ -487,21 +497,12 @@ module.exports = class MongooseJSONLD
 		do (self) =>
 			path = "#{@schemaPrefix}/#{model.modelName}"
 			console.log "Binding schema handler #{path}"
-			app.get path, (req, res, next) ->
-				# req.jsonld = model.schema.options['@context']
-				req.jsonld = model.jsonldTBox()
-				# console.log req.jsonld
-				if not req.headers.accept or req.headers.accept in ['*/*', 'application/json']
-					res.send JSON.stringify(req.jsonld, null, 2)
-				else
-					self.expressJsonldMiddleware(req, res, next)
-			for propPath, propDef of model.schema.paths
-				continue if INTERNAL_FIELD_REGEX.test propPath
-				# console.log propPath
-				do (propDef) =>
-					app.get "#{@schemaPrefix}/#{propPath}", (req, res, next) ->
-						req.jsonld = propDef.options['@context']
-						if not req.headers.accept or req.headers.accept in ['*/*', 'application/json']
-							res.send JSON.stringify(req.jsonld, null, 2)
-						else
-							self.expressJsonldMiddleware(req, res, next)
+			app.get path,
+				(req, res) ->
+					req.jsonld = model.schema.options['@context']
+					if not req.headers.accept or req.headers.accept in ['*/*', 'application/json']
+						res.send JSON.stringify(req.jsonld, null, 2)
+					else
+						self.expressJsonldMiddleware(req, res)
+
+
