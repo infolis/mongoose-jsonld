@@ -5,4 +5,5 @@ module.exports = {
 	'Number': Number
 	'ObjectId': Mongoose.Schema.ObjectId
 	'Date': Date
+	'Mixed': Mongoose.Schema.Types.Mixed
 }
