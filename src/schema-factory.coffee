@@ -4,8 +4,8 @@ Mongoose = require 'mongoose'
 Uuid     = require 'node-uuid'
 
 CommonContexts = require 'jsonld-common-contexts'
-JsonldRapper   = require 'jsonld-rapper/src'
-ExpressJSONLD  = require 'express-jsonld/src'
+JsonldRapper   = require 'jsonld-rapper'
+ExpressJSONLD  = require 'express-jsonld'
 
 Validators     = require './validators'
 TypeMap        = require './typemap'
