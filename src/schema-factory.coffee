@@ -77,6 +77,9 @@ module.exports = class MongooseJSONLD
 
 			# skip internal fields
 			continue if INTERNAL_FIELD_REGEX.test schemaPathName
+			if not schemaPathDef
+				console.log schemaPathName
+				continue
 
 			# Add property data to the context
 			propContext = schemaPathDef.options?['@context']
@@ -408,7 +411,7 @@ module.exports = class MongooseJSONLD
 	_POST_Resource: (model, req, res, next) ->
 		self = this
 		doc = new model(req.body)
-		console.log "POST new '#{model.modelName}' resource: #{JSON.stringify(doc.toJSON()).substr(0,100)}"
+		console.log "POST new '#{model.modelName}' resource: #{JSON.stringify(doc.toJSON())}"
 
 		doc.save (err, newDoc) ->
 			if err or not newDoc
