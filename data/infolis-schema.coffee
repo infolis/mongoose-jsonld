@@ -1,5 +1,5 @@
 {ObjectId} = require('mongoose').Schema
-module.exports = 
+module.exports =
 	Algorithm:
 		'@context':
 			'dc:description': 'An algorithm, a set of steps to calculate something from input, producing output.'
@@ -43,12 +43,12 @@ module.exports =
 		'@context':
 			'dc:description': 'A publication, see'
 			'@type': 'bibo:Document'
-		author: 
+		author:
 			'@context':
 				'@id': 'bibo:author'
 			type: String
 			ref: 'Person'
-		reader: 
+		reader:
 			'@context':
 				'@id': 'dc:subject'
 				'@container': '@list'
@@ -63,7 +63,7 @@ module.exports =
 				'@id':      'dc:format'
 			type: String
 			enum: [ "article", "article-magazine", "article-newspaper", "article-journal", "bill", "book", "broadcast", "chapter", "dataset", "entry",
-					"entry-dictionary", "entry-encyclopedia", "figure", "graphic", "interview", "legislation", "legal_case", "manuscript", "map", 
+					"entry-dictionary", "entry-encyclopedia", "figure", "graphic", "interview", "legislation", "legal_case", "manuscript", "map",
 					"motion_picture", "musical_score", "pamphlet", "paper-conference", "patent", "post", "post-weblog", "personal_communication", "report",
 					"review", "review-book", "song", "speech", "thesis", "treaty", "webpage"]
 
@@ -74,4 +74,4 @@ module.exports =
 	#             'rdf:type': 'rdfs:Property'
 	#             '@type': 'xsd:string'
 	#         type: String
-	
+
