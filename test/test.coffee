@@ -107,9 +107,10 @@ test 'Validate', (t) ->
 		type: '!!invalid on purpose!!'
 	)
 	pub2.validate (err) ->
+		console.log err
 		t.ok err, 'Should have error'
 		t.ok err.errors.type, 'should be on "type"'
-		t.equals err.errors.type.type, 'enum', "because value isn't from the enum"
+		t.equals err.errors.type.kind, 'enum', "because value isn't from the enum"
 		t.end()
 
 test '_isJoinSingle', (t) ->
