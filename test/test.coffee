@@ -8,6 +8,7 @@ dump = (stuff) ->
 	console.log JSON.stringify stuff, null, 2
 
 factory = new SchemaFactory(
+	mongoose: Mongoose
 	baseURI: 'http://www-test.bib-uni-mannheim.de/infolis'
 	apiPrefix: '/data'
 	schemaPrefix: '/schema'

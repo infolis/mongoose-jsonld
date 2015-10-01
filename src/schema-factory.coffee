@@ -1,6 +1,5 @@
 Async = require 'async'
 Merge    = require 'merge'
-Mongoose = require 'mongoose'
 Uuid     = require 'node-uuid'
 
 CommonContexts = require 'jsonld-common-contexts'
@@ -23,6 +22,9 @@ module.exports = class MongooseJSONLD
 	constructor : (opts = {}) ->
 		opts or= {}
 		@[k] = v for k,v of opts
+
+		if not @mongoose
+			throw 'Must pass mongoose'
 
 		opts.expandContexts or= ['prefix.cc']
 		@curie        or= CommonContexts.withContext(opts.expandContexts)
@@ -312,7 +314,7 @@ module.exports = class MongooseJSONLD
 
 			propDef['@context'] = pc
 
-		schema = new Mongoose.Schema(schemaDef, mongooseOptions)
+		schema = new @mongoose.Schema(schemaDef, mongooseOptions)
 		schema.plugin(@createPlugin())
 		return schema
 
@@ -322,8 +324,8 @@ module.exports = class MongooseJSONLD
 		try
 			switch idType
 				when "ObjectID"
-					if Mongoose.Types.ObjectId.isValid(toParse)
-						id = Mongoose.Types.ObjectId(toParse)
+					if @mongoose.Types.ObjectId.isValid(toParse)
+						id = @mongoose.Types.ObjectId(toParse)
 				else
 					id = toParse
 		catch e

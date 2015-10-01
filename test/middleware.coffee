@@ -1,13 +1,14 @@
 Fs = require 'fs'
 Async = require 'async'
 test = require 'tapes'
-mongoose = require 'mongoose'
+Mongoose = require 'mongoose'
 request = require 'supertest'
-{Schema} = mongoose
+{Schema} = Mongoose
 SuperAgent = require 'superagent'
 
 SchemaFactory = require '../src'
 factory = new SchemaFactory(
+	mongoose: Mongoose
 	baseURL: 'http://www-test.bib-uni-mannheim.de/infolis'
 	apiPrefix: '/api/v1'
 	expandContext: 'basic'
@@ -16,7 +17,7 @@ dump = (stuff) ->
 	console.log JSON.stringify stuff, null, 2
 
 schemaDefinitions = require '../data/infolis-schema'
-db = mongoose.createConnection()
+db = Mongoose.createConnection()
 
 PublicationSchema = factory.createSchema('Publication', schemaDefinitions.Publication)
 PublicationModel = db.model('Publication', PublicationSchema)
