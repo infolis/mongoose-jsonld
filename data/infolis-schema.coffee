@@ -1,22 +1,5 @@
 {ObjectId} = require('mongoose').Schema
 module.exports =
-	Algorithm:
-		'@context':
-			'dc:description': 'An algorithm, a set of steps to calculate something from input, producing output.'
-		author:
-			'@context':
-				'@id': 'dc:creator'
-			type: [{ type: String, ref: 'Person' }]
-		name:
-			'@context':
-				'@id': 'dc:title'
-				'dc:description': 'Name of the Algorithm'
-				'@type': 'xsd:string'
-			type: String
-		lastModified:
-			'@context':
-				'@id': 'dc:modified'
-			type: Date
 	Execution:
 		'@context':
 			'dc:description': 'The concrete execution of an Algorithm'
