@@ -264,16 +264,19 @@ module.exports = class MongooseJSONLD
 			if propDef['validate'] and typeof propDef['validate'] is 'string'
 				validateFn = @validators[propDef['validate']]
 				if not validateFn
-					throw new Error("No function handling #{propDef['validate']}")
+					throw new Error("No function handling #{propDef.validate}")
 				else
 					propDef['validate'] = validateFn
 
 			# handling flat types
-			else if propDef['type'] and propDef['type'] and typeof propDef['type'] is 'string'
+			if propDef['type'] and propDef['type'] and typeof propDef['type'] is 'string'
 				propDef['type'] = @typeMap[propDef['type']]
 
+			# handle required
+			if not propDef.required
+				propDef.required = no
+
 			# handle property @context
-			
 			pc = propDef['@context'] || {}
 			if typeof pc isnt 'object'
 				throw new Error("UNHANDLED @context not being an object, but #{typeof pc}")
