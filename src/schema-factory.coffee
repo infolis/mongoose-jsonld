@@ -145,6 +145,17 @@ module.exports = class MongooseJSONLD
 			def.type
 
 
+	_pathNameForPropertyUri: (model, uri) ->
+		# if model.schema.paths[@_lastUriSegment(uri)]
+		# XXX HACK
+		return @_lastUriSegment(uri)
+		# # Properties def
+		# for schemaPathName, schemaPathDef of model.schema.paths
+		#     # skip internal fields
+		#     continue if INTERNAL_FIELD_REGEX.test schemaPathName
+		#     propCtx = schemaPathDef.options?['@context']
+		#     continue unless propCtx
+
 	_listDescription: (model, opts) ->
 		onto = []
 
@@ -380,7 +391,9 @@ module.exports = class MongooseJSONLD
 		console.log "GET every #{model.modelName}"
 		searchDoc = {}
 		for k, v of req.query
-			searchDoc[k] = v
+			# TODO translate from uri to doc-name 
+			console.log model.schema
+			searchDoc[@_pathNameForPropertyUri model, k] = v
 		model.find searchDoc, (err, docs) ->
 			if err
 				res.status 500
