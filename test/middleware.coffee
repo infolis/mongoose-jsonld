@@ -22,6 +22,12 @@ db = Mongoose.createConnection()
 PublicationSchema = factory.createSchema('Publication', schemaDefinitions.Publication)
 PublicationModel = db.model('Publication', PublicationSchema)
 
+titles = [
+	'test1'
+	'test2'
+	'test3'
+]
+
 test 'CRUD', (t) ->
 	app = require('express')()
 	bodyParser = require('body-parser')
@@ -73,6 +79,22 @@ test 'CRUD', (t) ->
 					.end (err, res) ->
 						t.equals res.body.title, 'Bars and Quuxes', 'Title updated'
 						t.equals res.statusCode, 200, 'GET /:id 200'
+						cb()
+			
+			(cb) ->
+				# POST dummy data
+				Async.each titles, (title, postCB) ->
+					request(app)
+					.post '/api/v1/publication'
+					.send {title: title}
+					.end (err, res) ->
+						t.equals res.statusCode, 201, "POST / [title=#{title}]"
+						postCB()
+				, (err) ->
+					request(app)
+					.get "/api/v1/publication?title=#{titles[0]}"
+					.end (err, res) ->
+						t.equals res.body.length, 1, 'Found exactly one with matching title'
 						cb()
 
 			(cb) ->

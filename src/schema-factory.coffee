@@ -378,7 +378,10 @@ module.exports = class MongooseJSONLD
 
 	_GET_Collection : (model, req, res, next) ->
 		console.log "GET every #{model.modelName}"
-		model.find {}, (err, docs) ->
+		searchDoc = {}
+		for k, v of req.query
+			searchDoc[k] = v
+		model.find searchDoc, (err, docs) ->
 			if err
 				res.status 500
 				return next new Error(err)
