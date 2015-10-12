@@ -1,6 +1,7 @@
 Async = require 'async'
-Merge    = require 'merge'
-Uuid     = require 'node-uuid'
+Merge = require 'merge'
+Uuid  = require 'node-uuid'
+Yaml  = require 'js-yaml'
 
 CommonContexts = require 'jsonld-common-contexts'
 JsonldRapper   = require 'jsonld-rapper'
@@ -532,3 +533,75 @@ module.exports = class MongooseJSONLD
 						else
 							self.expressJsonldMiddleware(req, res, next)
 
+	injectSwaggerHandler : (app, models, info, nextMiddleware) ->
+		swaggerYaml = "#{@apiPrefix}/swagger.yaml"
+		console.log "Swagger available at #{swaggerYaml}"
+		app.get swaggerYaml, (req, res, next) =>
+			# res.header 'Content-Type', 'application/swagger+yaml'
+			res.header 'Content-Type', 'text/plain'
+			res.send Yaml.safeDump @getSwagger(models, info), {skipInvalid:yes}
+
+	getSwagger: (models, info) ->
+		info or= {}
+		info.title or= 'Untitled'
+		info.version or= @apiPrefix
+
+		paths = {}
+		definitions = {}
+		for model in models
+			for k, v of @getSwaggerPath(model)
+				paths[k] = v
+			for k, v of @getSwaggerDefinition(model)
+				definitions[k] = v
+
+		return {
+			swagger: "2.0"
+			info: info
+			basePath: @schemaPrefix
+			# consumes: Object.keys(JsonldRapper.SUPPORTED_INPUT_TYPE)
+			# produces: Object.keys(JsonldRapper.SUPPORTED_OUTPUT_TYPE)
+			paths: paths
+			definitions: definitions
+		}
+
+	getSwaggerPath: (model) ->
+		ret = {}
+		path = "#{@apiPrefix}/#{@_lcfirst model.modelName}/{id}"
+		ret[path] = {
+			get:
+				description: "Return all #{model.modelName}s",
+				# produces: Object.keys(JsonldRapper.SUPPORTED_OUTPUT_TYPE)
+				parameters: [
+					{
+						in: "path"
+						name: "id"
+						description: "ID of the #{model.modelName}"
+						required: true
+						type: 'string'
+					}
+				]
+				responses:
+					200:
+						description: "Found and retrieved #{model.modelName}"
+						schema:
+							$ref: "#/definitions/#{model.modelName}"
+					404:
+						description: "#{model.modelName} not found."
+		}
+		return ret
+
+	getSwaggerDefinition: (model) ->
+		ret = {}
+		ret[model.modelName] = definition = {
+			type: 'object'
+		}
+		definition.properties = properties = {}
+		modelContext = model.schema.options['@context']
+		definition.description = modelContext['dc:description']
+
+		for k, v of model.schema.paths
+			pathDef = {}
+			properties[k] = v.type
+			# console.log v
+			# pathDef.type = v.
+		return ret
