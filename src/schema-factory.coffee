@@ -534,12 +534,15 @@ module.exports = class MongooseJSONLD
 							self.expressJsonldMiddleware(req, res, next)
 
 	injectSwaggerHandler : (app, models, info, nextMiddleware) ->
-		swaggerYaml = "#{@apiPrefix}/swagger.yaml"
-		console.log "Swagger available at #{swaggerYaml}"
-		app.get swaggerYaml, (req, res, next) =>
-			# res.header 'Content-Type', 'application/swagger+yaml'
-			res.header 'Content-Type', 'text/plain'
+		swagger = "#{@apiPrefix}/swagger"
+		console.log "Swagger available at #{swagger}.yaml"
+		app.get "#{swagger}.yaml", (req, res, next) =>
+			res.header 'Content-Type', 'application/swagger+yaml'
 			res.send Yaml.safeDump @getSwagger(models, info), {skipInvalid:yes}
+		console.log "Swagger available at #{swagger}.json"
+		app.get "#{swagger}.json", (req, res, next) =>
+			res.header 'Content-Type', 'application/swagger+json'
+			res.send JSON.stringify @getSwagger(models, info)
 
 	getSwagger: (models, info) ->
 		info or= {}
