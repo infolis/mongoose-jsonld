@@ -544,53 +544,156 @@ module.exports = class MongooseJSONLD
 			res.header 'Content-Type', 'application/swagger+json'
 			res.send JSON.stringify @getSwagger(models, info)
 
-	getSwagger: (models, info) ->
-		info or= {}
-		info.title or= 'Untitled'
-		info.version or= @apiPrefix
+	getSwagger: (models, swaggerDef={}) ->
 
-		paths = {}
-		definitions = {}
+		swaggerDef.swagger or= '2.0'
+		swaggerDef.basePath or= @apiPrefix
+
+		swaggerDef.tags or= []
+		swaggerDef.tags.push {
+			name: 'mongoose-jsonld'
+			description: 'Automatically generated API'
+		}
+		swaggerDef.tags.push {
+			name: 'custom'
+			description: 'Custom methods'
+		}
+
+		swaggerDef.consumes or= [
+			'application/json'
+			'application/ld+json'
+			'text/turtle'
+			'text/n3'
+			'text/n-triples'
+			'application/rdf+xml'
+		]
+		swaggerDef.produces or= [
+			'application/json'
+			'application/ld+json'
+			'text/turtle'
+			'text/n3'
+			'text/n-triples'
+			'application/rdf+xml'
+		]
+
+		swaggerDef.info or= {}
+		swaggerDef.info.title or= 'Untitled Mongoose-JSONLD powered API'
+		swaggerDef.info.version or= '0.1'
+
+		swaggerDef.paths or= {}
+		swaggerDef.definitions or= {}
 		for model in models
 			for k, v of @getSwaggerPath(model)
-				paths[k] = v
+				swaggerDef.paths[k] = v
 			for k, v of @getSwaggerDefinition(model)
-				definitions[k] = v
+				swaggerDef.definitions[k] = v
 
-		return {
-			swagger: "2.0"
-			info: info
-			basePath: @schemaPrefix
-			# consumes: Object.keys(JsonldRapper.SUPPORTED_INPUT_TYPE)
-			# produces: Object.keys(JsonldRapper.SUPPORTED_OUTPUT_TYPE)
-			paths: paths
-			definitions: definitions
-		}
+		return swaggerDef
 
 	getSwaggerPath: (model) ->
+		modelName = model.modelName
+		modelNameLC = @_lcfirst model.modelName
+		tags = ["mongoose-jsonld:#{modelNameLC}"]
+
 		ret = {}
-		path = "#{@apiPrefix}/#{@_lcfirst model.modelName}/{id}"
-		ret[path] = {
-			get:
-				description: "Return all #{model.modelName}s",
-				# produces: Object.keys(JsonldRapper.SUPPORTED_OUTPUT_TYPE)
-				parameters: [
-					{
-						in: "path"
-						name: "id"
-						description: "ID of the #{model.modelName}"
-						required: true
-						type: 'string'
-					}
-				]
-				responses:
-					200:
-						description: "Found and retrieved #{model.modelName}"
-						schema:
-							$ref: "#/definitions/#{model.modelName}"
-					404:
-						description: "#{model.modelName} not found."
-		}
+
+		ret["/#{modelNameLC}"] = {}
+		ret["/#{modelNameLC}/{id}"] = {}
+		ret["/#{modelNameLC}/!!"] = {}
+
+		ret["/#{modelNameLC}"].get =
+			tags: tags
+			description: "Get all #{modelName}",
+			parameters: [
+					name: 'search'
+					in: "query"
+					description: "k-v-pairs to filter for"
+					required: false
+					schema:
+						$ref: "#/definitions/#{modelName}"
+			]
+			responses:
+				200:
+					description: "Retrieved all #{modelName}s"
+
+		ret["/#{modelNameLC}/{id}"].get =
+			tags: tags
+			description: "Return #{modelName} with _id {id}",
+			parameters: [
+				in: "path"
+				name: "id"
+				description: "ID of the #{modelName} to retrieve"
+				required: true
+				type: 'string'
+				format: 'uuid'
+			]
+			responses:
+				201:
+					description: "Found #{modelName}"
+					schema:
+						$ref: "#/definitions/#{modelName}"
+				404:
+					description: "#{modelName} not found."
+
+		ret["/#{modelNameLC}"].post =
+			tags: tags
+			description: "Post a new #{modelName}",
+			parameters: [
+					name: modelNameLC
+					in: "body"
+					description: "Representation of the new #{model.modelName}"
+					required: true
+					schema:
+						$ref: "#/definitions/#{modelName}"
+			]
+			responses:
+				201:
+					description: "Created a new #{modelName}"
+				404:
+					description: "#{modelName} not found."
+
+		ret["/#{modelNameLC}/{id}"].put =
+			tags: tags
+			description: "Replace #{modelName} with new #{modelName}",
+			parameters: [
+				in: "path"
+				name: "id"
+				description: "ID of the #{modelName} to replace"
+				required: true
+				type: 'string'
+				format: 'uuid'
+			]
+			responses:
+				201:
+					description: "Replaced #{modelName}"
+					schema:
+						$ref: "#/definitions/#{modelName}"
+				404:
+					description: "#{modelName} not found."
+
+		ret["/#{modelNameLC}/{id}"].delete =
+			tags: tags
+			description: "Delete #{modelName} with _id {id}",
+			parameters: [
+				in: "path"
+				name: "id"
+				description: "ID of the #{modelName} to delete"
+				required: true
+				type: 'string'
+			]
+			responses:
+				201:
+					description: "It's done. #{modelName} {id} is gone."
+				404:
+					description: "#{modelName} not found."
+
+		ret["/#{modelNameLC}/!!"].delete =
+			tags: tags
+			description: "Delete all #{modelName}",
+			responses:
+				200:
+					description: "Annihilated all #{modelName}"
+
 		return ret
 
 	getSwaggerDefinition: (model) ->
@@ -598,13 +701,33 @@ module.exports = class MongooseJSONLD
 		ret[model.modelName] = definition = {
 			type: 'object'
 		}
-		definition.properties = properties = {}
-		modelContext = model.schema.options['@context']
-		definition.description = modelContext['dc:description']
+		definition.properties = {}
+		definition.description = model.schema.options['@context']['dc:description']
+		definition.required = []
 
 		for k, v of model.schema.paths
-			pathDef = {}
-			properties[k] = v.type
+			if k.match /^_/
+				continue
+			if k == '@id'
+				continue
 			# console.log v
+			if v.isRequired
+				definition.required.push k
+			propDef = {}
+			type = @_lcfirst v.instance
+			switch type
+				when 'string', 'number', 'boolean'
+					propDef.type = type
+				when 'date'
+					propDef.type = 'string'
+					propDef.format = 'dateTime'
+				when 'array'
+					propDef.type = type
+					propDef.items = {type: 'string'}
+				else
+					console.log type
+			# if v.options['@context']['dc:example']
+				# propDef.example = v.options['@context']['dc:example']
 			# pathDef.type = v.
+			definition.properties[k] = propDef
 		return ret
