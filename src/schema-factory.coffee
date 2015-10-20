@@ -1,7 +1,7 @@
 Async = require 'async'
 Merge = require 'merge'
 Uuid  = require 'node-uuid'
-Yaml  = require 'js-yaml'
+YAML  = require 'yamljs'
 
 CommonContexts = require 'jsonld-common-contexts'
 JsonldRapper   = require 'jsonld-rapper'
@@ -535,30 +535,34 @@ module.exports = class MongooseJSONLD
 
 	injectSwaggerHandler : (app, models, info, nextMiddleware) ->
 		swagger = "#{@apiPrefix}/swagger"
+		swagger = "/swagger"
 		console.log "Swagger available at #{swagger}.yaml"
 		app.get "#{swagger}.yaml", (req, res, next) =>
 			res.header 'Content-Type', 'application/swagger+yaml'
-			res.send Yaml.safeDump @getSwagger(models, info), {skipInvalid:yes}
+			res.send YAML.stringify @getSwagger(models, info), 10, 2
 		console.log "Swagger available at #{swagger}.json"
 		app.get "#{swagger}.json", (req, res, next) =>
 			res.header 'Content-Type', 'application/swagger+json'
 			res.send JSON.stringify @getSwagger(models, info)
 
-	getSwagger: (models, swaggerDef={}) ->
+	getSwagger: (models, swaggerDef) ->
 
-		swaggerDef.swagger or= '2.0'
-		swaggerDef.basePath or= @apiPrefix
-
-		swaggerDef.tags or= []
-		swaggerDef.tags.push {
-			name: 'mongoose-jsonld'
-			description: 'Automatically generated API'
-		}
-		swaggerDef.tags.push {
-			name: 'custom'
-			description: 'Custom methods'
-		}
-
+		swaggerDef              or= {}
+		swaggerDef.swagger      or= '2.0'
+		swaggerDef.basePath     or= '/'
+		swaggerDef.info         or= {}
+		swaggerDef.info.title   or= 'Untitled Mongoose-JSONLD powered API'
+		swaggerDef.info.version or= '0.1'
+		swaggerDef.tags         or= [
+			{
+				name: 'mongoose-jsonld'
+				description: 'Automatically generated API'
+			}
+			{
+				name: 'custom'
+				description: 'Custom methods'
+			}
+		]
 		swaggerDef.consumes or= [
 			'application/json'
 			'application/ld+json'
@@ -576,9 +580,6 @@ module.exports = class MongooseJSONLD
 			'application/rdf+xml'
 		]
 
-		swaggerDef.info or= {}
-		swaggerDef.info.title or= 'Untitled Mongoose-JSONLD powered API'
-		swaggerDef.info.version or= '0.1'
 
 		swaggerDef.paths or= {}
 		swaggerDef.definitions or= {}
@@ -596,27 +597,29 @@ module.exports = class MongooseJSONLD
 		tags = ["mongoose-jsonld:#{modelNameLC}"]
 
 		ret = {}
+		pathCollection = "#{@apiPrefix}/#{modelNameLC}"
+		pathItem = "#{pathCollection}/{id}"
+		pathCollectionDelete = "#{pathCollection}/!!"
 
-		ret["/#{modelNameLC}"] = {}
-		ret["/#{modelNameLC}/{id}"] = {}
-		ret["/#{modelNameLC}/!!"] = {}
+		ret[pathCollection] = {}
+		ret[pathItem]       = {}
+		ret[pathCollectionDelete] = {}
 
-		ret["/#{modelNameLC}"].get =
+		ret[pathCollection].get =
 			tags: tags
-			description: "Get all #{modelName}",
+			description: "Get all [#{modelName}](#{@schemaPrefix}/#{modelName})",
 			parameters: [
-					name: 'search'
-					in: "query"
-					description: "k-v-pairs to filter for"
-					required: false
-					schema:
-						$ref: "#/definitions/#{modelName}"
+				name: 'search'
+				in: "query"
+				description: "k-v-pairs to filter for"
+				required: false
+				type: 'string'
 			]
 			responses:
 				200:
 					description: "Retrieved all #{modelName}s"
 
-		ret["/#{modelNameLC}/{id}"].get =
+		ret[pathItem].get =
 			tags: tags
 			description: "Return #{modelName} with _id {id}",
 			parameters: [
@@ -635,7 +638,7 @@ module.exports = class MongooseJSONLD
 				404:
 					description: "#{modelName} not found."
 
-		ret["/#{modelNameLC}"].post =
+		ret[pathCollection].post =
 			tags: tags
 			description: "Post a new #{modelName}",
 			parameters: [
@@ -652,7 +655,7 @@ module.exports = class MongooseJSONLD
 				404:
 					description: "#{modelName} not found."
 
-		ret["/#{modelNameLC}/{id}"].put =
+		ret[pathItem].put =
 			tags: tags
 			description: "Replace #{modelName} with new #{modelName}",
 			parameters: [
@@ -671,7 +674,7 @@ module.exports = class MongooseJSONLD
 				404:
 					description: "#{modelName} not found."
 
-		ret["/#{modelNameLC}/{id}"].delete =
+		ret[pathItem].delete =
 			tags: tags
 			description: "Delete #{modelName} with _id {id}",
 			parameters: [
@@ -687,7 +690,7 @@ module.exports = class MongooseJSONLD
 				404:
 					description: "#{modelName} not found."
 
-		ret["/#{modelNameLC}/!!"].delete =
+		ret[pathCollectionDelete].delete =
 			tags: tags
 			description: "Delete all #{modelName}",
 			responses:
@@ -703,6 +706,8 @@ module.exports = class MongooseJSONLD
 		}
 		definition.properties = {}
 		definition.description = model.schema.options['@context']['dc:description']
+			# "\n" +
+			# "See also [#{model.modelName} RDF definition](/#{@schemaPrefix}/#{model.modelName})"
 		definition.required = []
 
 		for k, v of model.schema.paths
@@ -710,17 +715,20 @@ module.exports = class MongooseJSONLD
 				continue
 			if k == '@id'
 				continue
-			# console.log v
+			if model.modelName == 'InfolisFile'
+				console.log v
 			if v.isRequired
 				definition.required.push k
 			propDef = {}
 			type = @_lcfirst v.instance
+			if v.enumValues and v.enumValues.length > 0
+				propDef.enum = v.enumValues
 			switch type
 				when 'string', 'number', 'boolean'
 					propDef.type = type
 				when 'date'
 					propDef.type = 'string'
-					propDef.format = 'dateTime'
+					propDef.format = 'date-time'
 				when 'array'
 					propDef.type = type
 					propDef.items = {type: 'string'}
@@ -730,4 +738,6 @@ module.exports = class MongooseJSONLD
 				# propDef.example = v.options['@context']['dc:example']
 			# pathDef.type = v.
 			definition.properties[k] = propDef
+		if definition.required.length == 0
+			delete definition.required
 		return ret
