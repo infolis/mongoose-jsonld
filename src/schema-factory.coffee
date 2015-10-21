@@ -389,12 +389,13 @@ module.exports = class MongooseJSONLD
 			return next()
 
 	_GET_Collection : (model, req, res, next) ->
-		console.log "GET every #{model.modelName}"
 		searchDoc = {}
-		for k, v of req.query
-			# TODO translate from uri to doc-name 
-			console.log model.schema
+		if req.query.q
+			for kvPair in req.query.q.split(',')
+				[k,v] = kvPair.split(':')
+				searchDoc[k] = v
 			searchDoc[@_pathNameForPropertyUri model, k] = v
+		console.log "GET every #{model.modelName} with #{JSON.stringify searchDoc}"
 		model.find searchDoc, (err, docs) ->
 			if err
 				res.status 500
@@ -607,17 +608,21 @@ module.exports = class MongooseJSONLD
 
 		ret[pathCollection].get =
 			tags: tags
-			description: "Get all [#{modelName}](#{@schemaPrefix}/#{modelName})",
+			description: "Get every [#{modelName}](#{@schemaPrefix}/#{modelName})",
 			parameters: [
-				name: 'search'
+				name: 'q'
 				in: "query"
-				description: "k-v-pairs to filter for"
+				description: "k-v-pairs to filter for. 'key1:value1,key2:value2'"
 				required: false
 				type: 'string'
 			]
 			responses:
 				200:
-					description: "Retrieved all #{modelName}s"
+					description: "Retrieved every [#{modelName}](#{@schemaPrefix}/#{modelName}"
+					schema:
+						type: 'array'
+						items:
+							$ref: "#/definitions/#{modelName}"
 
 		ret[pathItem].get =
 			tags: tags
