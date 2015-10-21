@@ -6,6 +6,7 @@ YAML  = require 'yamljs'
 CommonContexts = require 'jsonld-common-contexts'
 JsonldRapper   = require 'jsonld-rapper'
 ExpressJSONLD  = require 'express-jsonld'
+TsonSchema = require './tson_schema'
 
 Validators     = require './validators'
 TypeMap        = require './typemap'
@@ -19,6 +20,8 @@ atIdSchema = {
 INTERNAL_FIELD_REGEX=/^[\$_]/
 
 module.exports = class MongooseJSONLD
+
+	@TsonSchema = TsonSchema
 
 	constructor : (opts = {}) ->
 		opts or= {}
@@ -265,6 +268,7 @@ module.exports = class MongooseJSONLD
 
 		# JSON-LD info about properties
 		for propName, propDef of schemaDef
+			console.log propDef
 
 			# handle dbrefs
 			if propDef['type'] and Array.isArray(propDef['type'])
@@ -505,9 +509,7 @@ module.exports = class MongooseJSONLD
 					(req, res, next) -> nextMiddleware(req, res, next)
 				)
 
-	injectSchemaHandlers : (app, model, nextMiddleware) ->
-		if not nextMiddleware
-			nextMiddleware = @_conneg.bind(this)
+	injectSchemaHandlers : (app, model) ->
 
 		basePath = @schemaPrefix
 
@@ -534,7 +536,7 @@ module.exports = class MongooseJSONLD
 						else
 							self.expressJsonldMiddleware(req, res, next)
 
-	injectSwaggerHandler : (app, models, info, nextMiddleware) ->
+	injectSwaggerHandler : (app, models, info) ->
 		swagger = "#{@apiPrefix}/swagger"
 		swagger = "/swagger"
 		console.log "Swagger available at #{swagger}.yaml"
@@ -545,6 +547,11 @@ module.exports = class MongooseJSONLD
 		app.get "#{swagger}.json", (req, res, next) =>
 			res.header 'Content-Type', 'application/swagger+json'
 			res.send JSON.stringify @getSwagger(models, info)
+
+	injectLDFHandler : (app, schema, nextMiddleware) ->
+		if not nextMiddleware
+			nextMiddleware = @_conneg.bind(this)
+
 
 	getSwagger: (models, swaggerDef) ->
 
