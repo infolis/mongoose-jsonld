@@ -1,16 +1,5 @@
-{ObjectId} = require('mongoose').Schema
+# {ObjectId} = require('mongoose').Schema
 module.exports =
-	Execution:
-		'@context':
-			'dc:description': 'The concrete execution of an Algorithm'
-			'rdfs:subClassOf': 'schema:Action'
-	Configuration:
-		'@context':
-			'dc:description': 'A JSON document defining the inputs and environments of an Execution'
-			'rdfs:seeAlso': 'dm2e:Configuration'
-	Pattern:
-		'@context':
-			'dc:description': 'A Regular Expression pattern'
 	Person:
 		'@context':
 			'@id': 'foaf:Person'
@@ -45,16 +34,4 @@ module.exports =
 				'dc:description': "The values are the same as those in citeproc"
 				'@id':      'dc:format'
 			type: String
-			enum: [ "article", "article-magazine", "article-newspaper", "article-journal", "bill", "book", "broadcast", "chapter", "dataset", "entry",
-					"entry-dictionary", "entry-encyclopedia", "figure", "graphic", "interview", "legislation", "legal_case", "manuscript", "map",
-					"motion_picture", "musical_score", "pamphlet", "paper-conference", "patent", "post", "post-weblog", "personal_communication", "report",
-					"review", "review-book", "song", "speech", "thesis", "treaty", "webpage"]
-
-	# Author:
-	#     firstName:
-	#         '@context':
-	#             '@id': 'foaf:firstName'
-	#             'rdf:type': 'rdfs:Property'
-	#             '@type': 'xsd:string'
-	#         type: String
-
+			enum: ["article", "book"]

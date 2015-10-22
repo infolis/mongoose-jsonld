@@ -1,1 +1,1 @@
-module.exports = require './schema-factory'
+module.exports = require './schemo'

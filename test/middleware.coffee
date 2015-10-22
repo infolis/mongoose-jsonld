@@ -6,21 +6,22 @@ request = require 'supertest'
 {Schema} = Mongoose
 SuperAgent = require 'superagent'
 
-SchemaFactory = require '../src'
-factory = new SchemaFactory(
-	mongoose: Mongoose
+Schema = require '../src'
+
+db = Mongoose.createConnection()
+
+schemo = new Schema(
+	mongoose: db
 	baseURL: 'http://www-test.bib-uni-mannheim.de/infolis'
 	apiPrefix: '/api/v1'
+	schemology: require '../data/infolis-schema'
 	expandContext: 'basic'
 )
 dump = (stuff) ->
 	console.log JSON.stringify stuff, null, 2
 
-schemaDefinitions = require '../data/infolis-schema'
-db = Mongoose.createConnection()
-
-PublicationSchema = factory.createSchema('Publication', schemaDefinitions.Publication)
-PublicationModel = db.model('Publication', PublicationSchema)
+PublicationSchema = schemo.schemas.Publication
+PublicationModel = schemo.models.Publication
 
 titles = [
 	'test1'
@@ -92,7 +93,7 @@ test 'CRUD', (t) ->
 						postCB()
 				, (err) ->
 					request(app)
-					.get "/api/v1/publication?title=#{titles[0]}"
+					.get "/api/v1/publication?q=title:#{titles[0]}"
 					.end (err, res) ->
 						t.equals res.body.length, 1, 'Found exactly one with matching title'
 						cb()

@@ -1,13 +1,13 @@
-Fs            = require 'fs'
-Async         = require 'async'
-test          = require 'tape'
-Mongoose      = require 'mongoose'
-SchemaFactory = require '../src'
-Uuid          = require 'node-uuid'
-dump = (stuff) ->
-	console.log JSON.stringify stuff, null, 2
+Fs       = require 'fs'
+Async    = require 'async'
+test     = require 'tape'
+Mongoose = require 'mongoose'
+Schema   = require '../src'
+Uuid     = require 'node-uuid'
 
-factory = new SchemaFactory(
+schemoDef = require '../data/infolis-schema.coffee'
+
+schemo = new Schema(
 	mongoose: Mongoose
 	baseURI: 'http://www-test.bib-uni-mannheim.de/infolis'
 	apiPrefix: '/data'
@@ -17,29 +17,18 @@ factory = new SchemaFactory(
 		infolis: 'http://www-test.bib-uni-mannheim.de/infolis/schema/'
 		infolis_data: 'http://www-test.bib-uni-mannheim.de/infolis/data/'
 	}]
+	schemo: schemoDef
 )
 
-schemaDefinitions = require '../data/infolis-schema'
+# Publication = factory.createModel(Mongoose, 'Publication', schemaDefinitions.Publication)
+# Person = factory.createModel(Mongoose, 'Person', schemaDefinitions.Person)
 
-Publication = factory.createModel(Mongoose, 'Publication', schemaDefinitions.Publication)
-Person = factory.createModel(Mongoose, 'Person', schemaDefinitions.Person)
+{Person, Publication} = schemo.models
 
 pub1 = new Publication(
 	title: "The Art of Foo"
 	type: 'article'
 )
-# Whings
-# factory.jsonldRapper.convert pub1.jsonldABox(), 'jsonld', 'turtle', (err, converted) ->
-#     console.log converted
-# console.log pub1.jsonldABox()
-# console.log factory.jsonldRapper
-# console.log Publication.jsonldTBox()
-# factory.jsonldRapper.convert Publication.jsonldTBox(), 'jsonld', 'turtle', (err, converted) ->
-#     console.log converted
-# test 'Valid publication', (t) ->
-#     pub1.validate (err) ->
-#         t.notOk err, 'no validation error'
-#         t.end()
 
 testABoxProfile = (t, profile, cb) ->
 	pub1.jsonldABox {profile:profile}, (err, data) ->
@@ -71,12 +60,12 @@ test 'all profiles yield a result (TBox)', (t) ->
 
 test 'with and without callbacl', (t) ->
 	pub1.jsonldABox {profile: 'expand'}, (err, dataFromCB) ->
-		factory.jsonldRapper.convert pub1.jsonldABox(), 'jsonld', 'jsonld', {profile: 'expand'}, (err, dataFromJ2R) ->
+		schemo.factory.utils.jsonldRapper.convert pub1.jsonldABox(), 'jsonld', 'jsonld', {profile: 'expand'}, (err, dataFromJ2R) ->
 			t.deepEquals dataFromJ2R, dataFromCB, "Callback and return give the same result"
 			t.end()
 
 test 'shorten expand with objects', (t) ->
-	FooBarQuux = Mongoose.model 'FooBarQuux',  factory.createSchema('FooBarQuux', {
+	FooBarQuux = Mongoose.model 'FooBarQuux', schemo.factory.createSchema('FooBarQuux', {
 		'@context':
 			'dc:foo':
 				'@id': 'dc:bar'
@@ -108,30 +97,11 @@ test 'Validate', (t) ->
 		type: '!!invalid on purpose!!'
 	)
 	pub2.validate (err) ->
-		console.log err
+		# console.log err
 		t.ok err, 'Should have error'
 		t.ok err.errors.type, 'should be on "type"'
 		t.equals err.errors.type.kind, 'enum', "because value isn't from the enum"
 		t.end()
-
-test '_isJoinSingle', (t) ->
-	t.notOk factory._isJoinSingle()
-	t.notOk factory._isJoinSingle(42)
-	t.notOk factory._isJoinSingle({})
-	t.notOk factory._isJoinSingle([])
-	t.notOk factory._isJoinSingle({typex: String, ref: 'User'})
-	t.ok factory._isJoinSingle({type: String, ref: 'User'})
-	t.end()
-
-test '_isJoinMulti', (t) ->
-	t.notOk factory._isJoinMulti()
-	t.notOk factory._isJoinMulti(42)
-	t.notOk factory._isJoinMulti({})
-	t.notOk factory._isJoinMulti([])
-	t.notOk factory._isJoinMulti({type: String, ref: 'User'})
-	t.ok factory._isJoinMulti(type: [{type: String, ref: 'User'}])
-	t.notOk factory._isJoinMulti([{xtype: String, ref: 'User'}])
-	t.end()
 
 test '_createDocumentFromObject', (t) ->
 	Mongoose.connect('localhost:27018')
@@ -188,11 +158,4 @@ test '_findOneAndPopulate', (t) ->
 	# console.log pub3
 
 
-
-# # console.log Publication.schema.paths.type
-# # Publication.jsonldTBox {profile:(err, data) ->
-# #         if err 
-# #             console.log(JSON.stringify(err,null,2))
-# #         else
-# #             console.log(JSON.stringify(data,null,2))
-# console.log pub1.jsonldABox {profile: 'expand'}
+console.log pub1.jsonldABox {profile: 'expand'}
