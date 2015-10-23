@@ -20,3 +20,12 @@ test 'isJoinMulti', (t) ->
 	t.notOk Utils.isJoinMulti([{type: String, ref: 'User'}])
 	t.end()
 
+test 'lastUriSegment', (t) ->
+	t.equals Utils.lastUriSegment('http://'), ''
+	t.equals Utils.lastUriSegment('http://foo'), 'foo'
+	t.equals Utils.lastUriSegment('http://foo/bar'), 'bar'
+	t.end()
+
+test 'lcfirst', (t) ->
+	t.equals Utils.lcfirst('FooBar'), 'fooBar'
+	t.end()

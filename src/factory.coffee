@@ -1,18 +1,12 @@
 Merge    = require 'merge'
 Uuid     = require 'node-uuid'
-Utils    = require './utils'
+Utils = require './utils'
+Base  = require './base'
 
-module.exports = class Factory
+module.exports = class Factory extends Base
 
 	constructor : (opts = {}) ->
-		{@baseURI, @apiPrefix, @schemaPrefix} = opts
-		@baseURI      or= 'http://EXAMPLE.ORG'
-		@apiPrefix    or= '/api'
-		@schemaPrefix or= "/schema"
-		if not opts.mongoose
-			throw "Must pass Mongoose DB Connection as 'mongoose'"
-		@mongoose = opts.mongoose
-		@utils        or= new Utils(opts)
+		super
 
 	_listAssertions: (doc, opts, depth = 0) ->
 		factory = doc.schema.options.jsonldFactory
@@ -21,7 +15,7 @@ module.exports = class Factory
 		ret = {}
 		flatDoc = doc.toJSON()
 		# Set the @id to a dereferenceable URI
-		ret['@id'] = factory.utils.uriForInstance(doc)
+		ret['@id'] = factory.uriForInstance(doc)
 		# TODO is this the right behavior
 		ret['@context'] or= {}
 		schemaContext = doc.schema.options['@context']
@@ -91,7 +85,7 @@ module.exports = class Factory
 			continue if Utils.INTERNAL_FIELD_REGEX.test schemaPathName
 			propCtx = schemaPathDef.options?['@context']
 			continue unless propCtx
-			propCtx['@id'] = @utils.curie.shorten @utils.uriForClass(schemaPathName)
+			propCtx['@id'] = @curie.shorten @uriForClass(schemaPathName)
 			# propCtx['@type'] = 'rdfs:Property'
 			onto.push propCtx
 		return onto
@@ -114,7 +108,7 @@ module.exports = class Factory
 			#
 			schema.add _id : {
 				type: String
-				validate: factory.utils.validators.UUID
+				validate: factory.validators.UUID
 				# required: yes
 			}
 			#
@@ -133,13 +127,13 @@ module.exports = class Factory
 				doc = this
 				innerOpts = Merge(opts, innerOpts)
 				if cb
-					return factory.utils._convert factory._listAssertions(doc, innerOpts), innerOpts, cb
+					return factory.serialize factory._listAssertions(doc, innerOpts), innerOpts, cb
 				return factory._listAssertions(doc, innerOpts)
 			#
 			# Get the uri of this document
 			#
 			schema.methods.uri = () ->
-				return factory.utils.uriForInstance(this)
+				return factory.uriForInstance(this)
 			#
 			# Return the TBox of the model (definitions, @context etc.)
 			#
@@ -148,7 +142,7 @@ module.exports = class Factory
 				model = this
 				innerOpts = Merge(opts, innerOpts)
 				if cb
-					return factory.utils._convert factory._listDescription(model, innerOpts), innerOpts, cb
+					return factory.serialize factory._listDescription(model, innerOpts), innerOpts, cb
 				return factory._listDescription(model, innerOpts)
 			#
 			# Find one document and retrieve all inter-collection joins
@@ -165,7 +159,7 @@ module.exports = class Factory
 		mongooseOptions or= {}
 		mongooseOptions.jsonldFactory = this
 		# JSON-LD infos about the class
-		classUri = @utils.curie.shorten @utils.uriForClass(className)
+		classUri = @curie.shorten @uriForClass(className)
 		schemaContext = Merge schemaDef['@context'], {
 			'@id': classUri
 		}
@@ -181,17 +175,17 @@ module.exports = class Factory
 			if propDef['type'] and Array.isArray(propDef['type'])
 				typeDef = propDef['type'][0]
 				if typeDef and typeDef['type'] and typeof typeDef['type'] is 'string'
-					typeDef['type'] = @utils.typeMap[typeDef['type']]
+					typeDef['type'] = @typeMap[typeDef['type']]
 			# handle validate functions
 			if propDef['validate'] and typeof propDef['validate'] is 'string'
-				validateFn = @utils.validators[propDef['validate']]
+				validateFn = @validators[propDef['validate']]
 				if not validateFn
 					throw new Error("No function handling #{propDef.validate}")
 				else
 					propDef['validate'] = validateFn
 			# handling flat types
 			if propDef['type'] and propDef['type'] and typeof propDef['type'] is 'string'
-				propDef['type'] = @utils.typeMap[propDef['type']]
+				propDef['type'] = @typeMap[propDef['type']]
 			# handle required
 			if not propDef.required
 				propDef.required = no
@@ -202,9 +196,9 @@ module.exports = class Factory
 			# Canonicalize prefixed names
 			for x,y of propDef['@context']
 				if typeof y is 'string'
-					pc[@utils.curie.shorten @utils.curie.expand x] = @utils.curie.shorten @utils.curie.expand y
+					pc[@curie.shorten @curie.expand x] = @curie.shorten @curie.expand y
 				else
-					pc[@utils.curie.shorten @utils.curie.expand x] = y
+					pc[@curie.shorten @curie.expand x] = y
 			# TODO this was wrong
 			# # rdf:type rdfs:Property
 			# pc['@type'] or= []

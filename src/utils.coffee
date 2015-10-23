@@ -1,19 +1,23 @@
-CommonContexts = require 'jsonld-common-contexts'
-JsonldRapper   = require 'jsonld-rapper'
-ExpressJSONLD  = require 'express-jsonld'
-Merge          = require 'merge'
-Validators     = require './validators'
-TypeMap        = require './typemap'
 {inspect}      = require 'util'
 
-module.exports  = class Utils
+module.exports = class Utils
 
+	#
+	# Regex for matching internal mongoose / mongodb fields
+	#
 	@INTERNAL_FIELD_REGEX: /^[\$_]/
+
 	@CONTEXT_FIELD_REGEX: /^@context$/
 
+	#
+	# @return {string} lower-case the first letter of a string
+	#
 	@lcfirst : (str) ->
 		str.substr(0,1).toLowerCase() + str.substr(1)
 
+	#
+	# Everything after the last '/' slash
+	#
 	@lastUriSegment : (uri) ->
 		return uri.substr(uri.lastIndexOf('/') + 1)
 
@@ -44,63 +48,13 @@ module.exports  = class Utils
 			def.ref and
 			def.type
 
-	constructor: (opts) ->
-		opts or= {}
-		if not opts.mongoose
-			throw "Must pass Mongoose DB Connection as 'mongoose'"
+	@dumplog: (obj) ->
+		console.log @dump obj
 
-		@[k] = v for k,v of opts
-
-		@jsonldRapper or= new JsonldRapper(
-			# baseURI: "#{@baseURI}#{@schemaPrefix}/"
-			baseURI: "(ツ)"
-			curie: @curie
-		)
-		opts.expandContexts or= ['prefix.cc']
-		@curie        or= CommonContexts.withContext(opts.expandContexts)
-		@baseURI      or= 'http://EXAMPLE.ORG'
-		@apiPrefix    or= '/api'
-		@schemaPrefix or= "/schema"
-		@typeMap      = Merge(TypeMap, opts.typemap)
-		@validators   = Merge(Validators, opts.validators)
-		@expressJsonldMiddleware = new ExpressJSONLD(jsonldRapper: @jsonldRapper).getMiddleware()
-		@uriForClass or= (short) ->
-			return "#{@baseURI}#{@schemaPrefix}/#{short}"
-		@uriForInstance or= (doc) ->
-			return "#{@baseURI}#{@apiPrefix}/#{Utils.lcfirst doc.constructor.modelName}/#{doc._id}"
-
-	_convert : (doc, opts, cb) ->
-		if typeof opts == 'function' then [cb, opts] = [opts, {}]
-		if not opts or not (opts['to'] or opts['profile'])
-			return cb null, doc
-		else if not opts['to'] and opts['profile']
-			opts['to'] = 'jsonld'
-		return @jsonldRapper.convert doc, 'jsonld', opts['to'], opts, cb
-
-	dump: (obj) ->
+	@dump: (obj) ->
 		inspect obj, {
-			depth: 1
+			depth: 8
 			showHidden: false
 			colors: true
 		}
 
-	_conneg : (req, res, next) ->
-		self = this
-		if not req.mongooseDoc
-			res.end()
-		else if not req.headers.accept or req.headers.accept in ['*/*', 'application/json']
-			if Array.isArray(req.mongooseDoc)
-				res.send req.mongooseDoc.map (el) -> el.toJSON()
-			else
-				res.send req.mongooseDoc.toJSON()
-		else
-			if Array.isArray(req.mongooseDoc)
-				Async.map req.mongooseDoc, (doc, eachDoc) ->
-					doc.jsonldABox eachDoc
-				, (err, result) =>
-					req.jsonld = result
-					self.expressJsonldMiddleware(req, res, next)
-			else
-				req.mongooseDoc.jsonldABox req.mongooseDoc, (err, jsonld) ->
-					req.jsonld = jsonld
-					self.expressJsonldMiddleware(req, res, next)

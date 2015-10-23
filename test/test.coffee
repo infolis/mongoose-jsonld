@@ -2,17 +2,18 @@ Fs       = require 'fs'
 Async    = require 'async'
 test     = require 'tape'
 Mongoose = require 'mongoose'
-Schema   = require '../src'
+Schemo   = require '../src'
 Uuid     = require 'node-uuid'
+Utils    = require '../src/utils'
 
 schemoDef = require '../data/infolis-schema.coffee'
 
-schemo = new Schema(
+schemo = new Schemo(
 	mongoose: Mongoose
 	baseURI: 'http://www-test.bib-uni-mannheim.de/infolis'
 	apiPrefix: '/data'
 	schemaPrefix: '/schema'
-	expandContexts: ['basic', {
+	expandContexts: ['prefix.cc', {
 		rdfs: 'http://www.w3.org/2000/01/rdf-schema#'
 		infolis: 'http://www-test.bib-uni-mannheim.de/infolis/schema/'
 		infolis_data: 'http://www-test.bib-uni-mannheim.de/infolis/data/'
@@ -60,12 +61,12 @@ test 'all profiles yield a result (TBox)', (t) ->
 
 test 'with and without callbacl', (t) ->
 	pub1.jsonldABox {profile: 'expand'}, (err, dataFromCB) ->
-		schemo.factory.utils.jsonldRapper.convert pub1.jsonldABox(), 'jsonld', 'jsonld', {profile: 'expand'}, (err, dataFromJ2R) ->
+		schemo.jsonldRapper.convert pub1.jsonldABox(), 'jsonld', 'jsonld', {profile: 'expand'}, (err, dataFromJ2R) ->
 			t.deepEquals dataFromJ2R, dataFromCB, "Callback and return give the same result"
 			t.end()
 
 test 'shorten expand with objects', (t) ->
-	FooBarQuux = Mongoose.model 'FooBarQuux', schemo.factory.createSchema('FooBarQuux', {
+	schemo.addClass 'FooBarQuux', {
 		'@context':
 			'dc:foo':
 				'@id': 'dc:bar'
@@ -73,12 +74,13 @@ test 'shorten expand with objects', (t) ->
 				'@id': 'dc:froop'
 		blork:
 			'@context':
-				'dc:frobozz': 
+				'dc:frobozz':
 					'@id': 'dc:fnep'
 			type: 'String'
-	})
+	}
 	# console.log FooBarQuux.jsonldTBox()
-	FooBarQuux.jsonldTBox {to:'turtle'}, (err, data) ->
+	schemo.models.FooBarQuux.jsonldTBox {to:'turtle'}, (err, data) ->
+		console.log data
 		t.notOk err, "No error"
 		t.ok (data.indexOf('dc:frobozz dc:fnep ;') > -1), "Contains correct Turtle"
 		t.end()
@@ -158,4 +160,9 @@ test '_findOneAndPopulate', (t) ->
 	# console.log pub3
 
 
-console.log pub1.jsonldABox {profile: 'expand'}
+test 'xx', (t) ->
+	console.log pub1.jsonldABox {profile: 'expand'}
+	schemo.jsonldTBox {to:'turtle'}, (err, dat) ->
+		# utils.dumplog dat
+		console.log dat
+		t.end()

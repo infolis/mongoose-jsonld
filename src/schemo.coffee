@@ -2,15 +2,23 @@
 # Schemo
 ###
 
-TSON    = require 'tson'
 Fs      = require 'fs'
+TSON    = require 'tson'
+
 Factory = require './factory'
-Utils    = require './utils'
+Utils   = require './utils'
+Base    = require './base'
 
-module.exports = class Schemo
+module.exports = class Schemo extends Base
 
-	constructor : (opts) ->
-		opts or= {}
+	constructor : (opts = {}) ->
+		#
+		# Call the base constructor
+		#
+		super
+		#
+		# Load the schema-ontology json
+		#
 		if not opts.schemo
 			if opts.tson
 				opts.schemo = TSON.load opts.tson
@@ -18,48 +26,66 @@ module.exports = class Schemo
 				opts.schemo = JSON.parse Fs.readFileSync opts.json
 			else
 				throw new Error("Must provide 'schemo' object to constructor")
-		if not opts.mongoose
-			throw new Error("Need a Mongoose MongoDB Connection, provide 'mongoose' to constructor")
-		#
-		# Take all arguments
-		#
-		@[k]   = v for k,v of opts
 		#
 		# factory
 		#
-		@mongoose = opts.mongoose
 		@factory = new Factory(opts)
 		#
 		# instance properties
 		#
 		@schemas = {}
 		@models = {}
-		@onto = {
-			'@context': {}
-			'@graph': []
+		@onto = { 
+			classes: {}
 		}
 		#
 		# Build the schemas and models
 		#
-		for schemaName, schemaDef of @schemo
-			if schemaName is '@ns'
-				@onto['@context'][ns] = uri for ns,uri of schemaDef
-			else if schemaName is '@context'
-				# TODO add id
-				@onto['@graph'].push schemaDef
+		for className, classDef of @schemo
+			if /^@/.test className
+				@onto[className] = classDef
 			else
-				# console.log schemaName
-				@schemas[schemaName] = schema = @factory.createSchema(schemaName, schemaDef, {strict: true})
-				@models[schemaName] = @mongoose.model(schemaName, schema)
-				@onto['@graph'].push @models[schemaName].jsonldTBox()
+				@addClass className, classDef
+
+	addClass: (className, classDef) ->
+		@schemas[className] = schema = @factory.createSchema(className, classDef, {strict: true})
+		@models[className] = model = @mongoose.model(className, schema)
+		@onto.classes[className] = model.jsonldTBox()
 
 	jsonldTBox : (opts, cb) ->
 		if typeof opts == 'function' then [cb, opts] = [opts, {}]
+		jsonld = {'@context':{}, '@graph':[]}
+		for k,v of @onto
+			if k is '@ns'
+				jsonld['@context'] = v
+			else if k is '@context'
+				jsonld['@graph'].push v
+			else
+				for kk, vv of v
+					jsonld['@graph'].push vv
 		if cb
-			return @factory.utils.convert(@onto, opts, cb)
+			return @serialize(jsonld, opts, cb)
 		else
-			return @onto
-	
-	injectSchemaHandlers: ->
-		# console.log @factory.utils.dump arguments
-		return require('./handlers/jsonld').apply(@, arguments)
+			return jsonld
+
+	injectSchemaHandlers: (app, model)->
+		path = "#{@schemaPrefix}/#{model.modelName}"
+		console.log "Binding schema handler #{path}"
+		app.get path, (req, res, next) =>
+			# req.jsonld = model.schema.options['@context']
+			req.jsonld = model.jsonldTBox()
+			# console.log req.jsonld
+			if not req.headers.accept or req.headers.accept in ['*/*', 'application/json']
+				res.send JSON.stringify(req.jsonld, null, 2)
+			else
+				@expressJsonldMiddleware(req, res, next)
+		for propPath, propDef of model.schema.paths
+			continue if Utils.INTERNAL_FIELD_REGEX.test propPath
+			# console.log propPath
+			do (propDef) =>
+				app.get "#{@schemaPrefix}/#{propPath}", (req, res, next) =>
+					req.jsonld = propDef.options['@context']
+					if not req.headers.accept or req.headers.accept in ['*/*', 'application/json']
+						res.send JSON.stringify(req.jsonld, null, 2)
+					else
+						@expressJsonldMiddleware(req, res, next)
