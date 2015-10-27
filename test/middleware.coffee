@@ -14,11 +14,9 @@ schemo = new Schema(
 	mongoose: db
 	baseURL: 'http://www-test.bib-uni-mannheim.de/infolis'
 	apiPrefix: '/api/v1'
-	schemology: require '../data/infolis-schema'
 	expandContext: 'basic'
+	schemo: require '../data/infolis-schema'
 )
-dump = (stuff) ->
-	console.log JSON.stringify stuff, null, 2
 
 PublicationSchema = schemo.schemas.Publication
 PublicationModel = schemo.models.Publication
@@ -33,7 +31,7 @@ test 'CRUD', (t) ->
 	app = require('express')()
 	bodyParser = require('body-parser')
 	app.use(bodyParser.json())
-	factory.injectRestfulHandlers(app, PublicationModel)
+	schemo.handlers.restful.inject(app)
 	db.open  'localhost:27018/test'
 	id = null
 	db.once 'open', ->
@@ -111,6 +109,6 @@ test 'CRUD', (t) ->
 						cb()
 
 		], (err) ->
-			console.log err
+			console.log err if err
 			db.close()
 			t.end()

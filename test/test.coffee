@@ -5,11 +5,11 @@ Mongoose = require 'mongoose'
 Schemo   = require '../src'
 Uuid     = require 'node-uuid'
 Utils    = require '../src/utils'
+{inspect}  = require 'util'
 
-schemoDef = require '../data/infolis-schema.coffee'
-
+db = Mongoose.createConnection()
 schemo = new Schemo(
-	mongoose: Mongoose
+	mongoose: db
 	baseURI: 'http://www-test.bib-uni-mannheim.de/infolis'
 	apiPrefix: '/data'
 	schemaPrefix: '/schema'
@@ -18,8 +18,12 @@ schemo = new Schemo(
 		infolis: 'http://www-test.bib-uni-mannheim.de/infolis/schema/'
 		infolis_data: 'http://www-test.bib-uni-mannheim.de/infolis/data/'
 	}]
-	schemo: schemoDef
+	schemo: require '../data/infolis-schema.coffee'
 )
+
+test 'sanity mongoose instance check', (t) ->
+	t.equals new db.base.constructor(), Mongoose
+	t.end()
 
 # Publication = factory.createModel(Mongoose, 'Publication', schemaDefinitions.Publication)
 # Person = factory.createModel(Mongoose, 'Person', schemaDefinitions.Person)

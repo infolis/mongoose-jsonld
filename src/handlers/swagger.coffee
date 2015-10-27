@@ -1,23 +1,23 @@
-module.exports = class Swagger
+YAML  = require 'yamljs'
+Utils = require '../utils'
+Base = require '../base'
 
-	constructor: (@apiPrefix, @schemaPrefix) ->
+module.exports = class Swagger extends Base
 
-	injectSwaggerHandler : (app, models, info) ->
+	inject: (app, swaggerDef, nextMiddleware) ->
 		swagger = "#{@apiPrefix}/swagger"
 		swagger = "/swagger"
 		console.log "Swagger available at #{swagger}.yaml"
 		app.get "#{swagger}.yaml", (req, res, next) =>
 			res.header 'Content-Type', 'application/swagger+yaml'
-			res.send YAML.stringify @getSwagger(models, info), 10, 2
+			res.send YAML.stringify @getSwagger(swaggerDef), 10, 2
 		console.log "Swagger available at #{swagger}.json"
 		app.get "#{swagger}.json", (req, res, next) =>
 			res.header 'Content-Type', 'application/swagger+json'
-			res.send JSON.stringify @getSwagger(models, info)
+			res.send JSON.stringify @getSwagger(swaggerDef)
 
 
-	getSwagger: (models, swaggerDef) ->
-
-		swaggerDef              or= {}
+	getSwagger: (swaggerDef) ->
 		swaggerDef.swagger      or= '2.0'
 		swaggerDef.basePath     or= '/'
 		swaggerDef.info         or= {}
@@ -53,7 +53,7 @@ module.exports = class Swagger
 
 		swaggerDef.paths or= {}
 		swaggerDef.definitions or= {}
-		for model in models
+		for modelName, model of @models
 			for k, v of @getSwaggerPath(model)
 				swaggerDef.paths[k] = v
 			for k, v of @getSwaggerDefinition(model)

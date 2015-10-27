@@ -1,65 +1,43 @@
-module.exports = class RestfulHandler
+Utils = require '../utils'
+Base = require '../base'
 
-	constructor: (@apiPrefix) ->
+module.exports = class RestfulHandler extends Base
 
-	injectRestfulHandlers: (app, model, nextMiddleware) ->
+	inject: (app, nextMiddleware) ->
 		if not app
 			throw Error("No app given")
 		if not nextMiddleware
 			nextMiddleware = @_conneg.bind(@)
-
 		self = this
-		# basePath = "#{@apiPrefix}/#{model.collection.name}"
-		modelName = model.modelName
-		basePath = "#{@apiPrefix}/#{StrUtils.lcfirst(model.modelName)}"
-
-		api = {}
-		# GET /api/somethings/:id     => get a 'something' with :id
-		api["GET #{basePath}/:id"]     = @_GET_Resource
-		# GET /api/somethings         => List all somethings
-		api["GET #{basePath}/?"]       = @_GET_Collection
-		# POST /api/somethings        => create new something
-		api["POST #{basePath}/?"]      = @_POST_Resource
-		# PUT /api/somethings/:id     => create/replace something with :id
-		api["PUT #{basePath}/:id"]     = @_PUT_Resource
-		# DELETE /api/somethings/!    => delete all somethings [XXX DANGER ZONE]
-		api["DELETE #{basePath}/!!"]   = @_DELETE_Collection
-		# DELETE /api/somethings/:id  => delete something with :id
-		api["DELETE #{basePath}/:id"]  = @_DELETE_Resource
-
-		console.log "Registering REST Handlers on basePath '#{basePath}'"
-		for methodAndPath, handle of api
-			do (methodAndPath, handle, nextMiddleware) ->
-				expressMethod = methodAndPath.substr(0, methodAndPath.indexOf(' ')).toLowerCase()
-				path = methodAndPath.substr(methodAndPath.indexOf(' ') + 1)
-				# console.log "#{expressMethod} '#{path}'"
-				app[expressMethod](
-					path
-					(req, res, next) -> handle.apply(self, [model, req, res, next])
-					(req, res, next) -> nextMiddleware(req, res, next)
-				)
-
-	_conneg : (req, res, next) ->
-		self = this
-		if not req.mongooseDoc
-			res.end()
-		else if not req.headers.accept or req.headers.accept in ['*/*', 'application/json']
-			if Array.isArray(req.mongooseDoc)
-				res.send req.mongooseDoc.map (el) -> el.toJSON()
-			else
-				res.send req.mongooseDoc.toJSON()
-		else
-			if Array.isArray(req.mongooseDoc)
-				Async.map req.mongooseDoc, (doc, eachDoc) ->
-					doc.jsonldABox eachDoc
-				, (err, result) =>
-					req.jsonld = result
-					self.expressJsonldMiddleware(req, res, next)
-			else
-				req.mongooseDoc.jsonldABox req.mongooseDoc, (err, jsonld) ->
-					req.jsonld = jsonld
-					self.expressJsonldMiddleware(req, res, next)
-
+		for modelName, model of @models
+			do (modelName, model) =>
+				# basePath = "#{@apiPrefix}/#{model.collection.name}"
+				modelName = model.modelName
+				basePath = "#{@apiPrefix}/#{Utils.lcfirst(model.modelName)}"
+				api = {}
+				# GET /api/somethings/:id     => get a 'something' with :id
+				api["GET #{basePath}/:id"]     = @_GET_Resource
+				# GET /api/somethings         => List all somethings
+				api["GET #{basePath}/?"]       = @_GET_Collection
+				# POST /api/somethings        => create new something
+				api["POST #{basePath}/?"]      = @_POST_Resource
+				# PUT /api/somethings/:id     => create/replace something with :id
+				api["PUT #{basePath}/:id"]     = @_PUT_Resource
+				# DELETE /api/somethings/!    => delete all somethings [XXX DANGER ZONE]
+				api["DELETE #{basePath}/!!"]   = @_DELETE_Collection
+				# DELETE /api/somethings/:id  => delete something with :id
+				api["DELETE #{basePath}/:id"]  = @_DELETE_Resource
+				console.log "Registering REST Handlers on basePath '#{basePath}'"
+				for methodAndPath, handle of api
+					do (methodAndPath, handle, nextMiddleware) =>
+						expressMethod = methodAndPath.substr(0, methodAndPath.indexOf(' ')).toLowerCase()
+						path = methodAndPath.substr(methodAndPath.indexOf(' ') + 1)
+						# console.log "#{expressMethod} '#{path}'"
+						app[expressMethod](
+							path
+							(req, res, next) -> handle.apply(self, [model, req, res, next])
+							(req, res, next) -> nextMiddleware(req, res, next)
+						)
 
 	_GET_Resource : (model, req, res, next) ->
 		console.log "GET #{model.modelName}##{req.params.id} "
@@ -173,4 +151,7 @@ module.exports = class RestfulHandler
 			console.log e
 			res.status 404
 		return id
+
+	# XXX TODO
+	_pathNameForPropertyUri: (model, x) -> x
 
