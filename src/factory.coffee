@@ -167,7 +167,7 @@ module.exports = class Factory extends Base
 		delete schemaDef['@context']
 		mongooseOptions['@context'] = schemaContext
 		schemaContext['rdf:type'] or= [{'@id': 'owl:Thing'}]
-		schema = new @mongoose.Schema({}, mongooseOptions)
+		schema = new(@mongoose.base.constructor)().Schema({}, mongooseOptions)
 		schema.plugin(@createPlugin(schema))
 		# JSON-LD info about properties
 		for propName, propDef of schemaDef
@@ -225,9 +225,7 @@ module.exports = class Factory extends Base
 			propOpts = {
 				'@context': pc
 			}
-			console.log propDef
 			delete propDef['@context']
-			console.log propDef
 			schema.add("#{propName}": propDef)
 			schema.paths[propName].options or= {}
 			schema.paths[propName].options['@context'] = pc
