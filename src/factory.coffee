@@ -30,6 +30,7 @@ module.exports = class Factory extends Base
 			# skip internal fields
 			continue if Utils.INTERNAL_FIELD_REGEX.test schemaPathName
 			if not schemaPathDef
+				#XXX TODO
 				console.log "Error: #{schemaPathName} l38"
 				continue
 			# Add property data to the context
@@ -134,6 +135,11 @@ module.exports = class Factory extends Base
 			#
 			schema.methods.uri = () ->
 				return factory.uriForInstance(this)
+			#
+			# Get the uri of a class
+			#
+			schema.methods.uriForClass = (clazz) ->
+				return factory.uriForClass(clazz)
 			#
 			# Return the TBox of the model (definitions, @context etc.)
 			#

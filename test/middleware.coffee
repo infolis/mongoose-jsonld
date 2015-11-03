@@ -3,14 +3,13 @@ Async = require 'async'
 test = require 'tapes'
 Mongoose = require 'mongoose'
 request = require 'supertest'
-{Schema} = Mongoose
 SuperAgent = require 'superagent'
 
-Schema = require '../src'
+Schemo = require '../src'
 
 db = Mongoose.createConnection()
 
-schemo = new Schema(
+schemo = new Schemo(
 	mongoose: db
 	baseURL: 'http://www-test.bib-uni-mannheim.de/infolis'
 	apiPrefix: '/api/v1'
