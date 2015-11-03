@@ -4,13 +4,13 @@ module.exports =
 		'@context':
 			'@id': 'foaf:Person'
 		surname:
-			type: String
 			'@context':
 				'@id': 'foaf:surname'
-		given:
 			type: String
+		given:
 			'@context':
 				'@id': 'foaf:givenName'
+			type: String
 	Publication:
 		'@context':
 			'dc:description': 'A publication, see'
@@ -18,13 +18,12 @@ module.exports =
 		author:
 			'@context':
 				'@id': 'bibo:author'
-			type: String
-			ref: 'Person'
+			refOne: 'Person'
 		reader:
 			'@context':
 				'@id': 'dc:subject'
 				'@container': '@list'
-			type: [{ type: String, ref: 'Person' }]
+			refMany: 'Person'
 		title:
 			type: String
 			'@context':

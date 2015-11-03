@@ -61,13 +61,17 @@ module.exports = class Factory extends Base
 		for schemaPathName of obj
 			schemaPathDef = model.schema.paths[schemaPathName]
 			schemaPathOptions = schemaPathDef.options
-			if Utils.isJoinSingle schemaPathOptions
+			Utils.dumplog schemaPathOptions
+			if 'refOne' of schemaPathOptions
 				obj[schemaPathName] = Utils.lastUriSegment(obj[schemaPathName])
-			else if Utils.isJoinMulti schemaPathOptions
-				for i in [0 ... obj[schemaPathName].length]
-					obj[schemaPathName][i] = Utils.lastUriSegment(obj[schemaPathName][i])
+			else if 'refMany' of schemaPathOptions
+				swap = []
+				for uri of obj[schemaPathName]
+					swap.push Utils.lastUriSegment uri
+				obj[schemaPathName] = swap
 		return new model(obj)
 
+	# XXXX TODO do this by hand
 	_findOneAndPopulate : (model, searchDoc, cb) ->
 		builder = model.findOne(searchDoc)
 		for schemaPathName, schemaPathDef of model.schema.paths
@@ -177,11 +181,6 @@ module.exports = class Factory extends Base
 		schema.plugin(@createPlugin(schema))
 		# JSON-LD info about properties
 		for propName, propDef of schemaDef
-			# handle dbrefs
-			if propDef['type'] and Array.isArray(propDef['type'])
-				typeDef = propDef['type'][0]
-				if typeDef and typeDef['type'] and typeof typeDef['type'] is 'string'
-					typeDef['type'] = @typeMap[typeDef['type']]
 			# handle validate functions
 			if propDef['validate'] and typeof propDef['validate'] is 'string'
 				validateFn = @validators[propDef['validate']]
@@ -232,6 +231,15 @@ module.exports = class Factory extends Base
 				'@context': pc
 			}
 			delete propDef['@context']
+			# XXX TODO
+			# handle dbrefs
+			#
+			if 'refMany' of propDef
+				propDef.type = String
+				propDef.ref = propDef.refMany
+			else if 'refOne' of propDef
+				propDef.type = String
+				propDef.ref = propDef.refOne
 			schema.add("#{propName}": propDef)
 			schema.paths[propName].options or= {}
 			schema.paths[propName].options['@context'] = pc
