@@ -1,11 +1,12 @@
+Async          = require 'async'
 CommonContexts = require 'jsonld-common-contexts'
 JsonldRapper   = require 'jsonld-rapper'
 ExpressJSONLD  = require 'express-jsonld'
 Merge          = require 'merge'
 
-Validators = require './validators'
-TypeMap    = require './typemap'
-Utils      = require './utils'
+Validators     = require './validators'
+TypeMap        = require './typemap'
+Utils          = require './utils'
 
 module.exports  = class MongooseJsonldBase
 
