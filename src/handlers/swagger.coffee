@@ -64,7 +64,7 @@ module.exports = class Swagger extends Base
 	getSwaggerPath: (model) ->
 		modelName = model.modelName
 		modelNameLC = Utils.lcfirst model.modelName
-		tags = ["mongoose-jsonld:#{modelNameLC}"]
+		tags = ["mongoose-jsonld", "#{modelNameLC}"]
 
 		ret = {}
 		pathCollection = "#{@apiPrefix}/#{modelNameLC}"
