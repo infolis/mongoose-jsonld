@@ -189,14 +189,14 @@ module.exports = class Swagger extends Base
 				continue
 			if k == '@id'
 				continue
-			if model.modelName == 'InfolisFile'
-				console.log v
+			# if model.modelName == 'InfolisFile'
+				# console.log v
 			if v.isRequired
 				definition.required.push k
 			propDef = {}
-			type = Utils.lcfirst v.instance
 			if v.enumValues and v.enumValues.length > 0
 				propDef.enum = v.enumValues
+			type = Utils.lcfirst v.instance
 			switch type
 				when 'string', 'number', 'boolean'
 					propDef.type = type
@@ -207,7 +207,7 @@ module.exports = class Swagger extends Base
 					propDef.type = type
 					propDef.items = {type: 'string'}
 				else
-					console.log type
+					console.log "UNKNOWN TYPE", type
 			# if v.options['@context']['dc:example']
 				# propDef.example = v.options['@context']['dc:example']
 			# pathDef.type = v.
