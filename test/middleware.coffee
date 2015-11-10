@@ -3,24 +3,22 @@ Async = require 'async'
 test = require 'tapes'
 Mongoose = require 'mongoose'
 request = require 'supertest'
-{Schema} = Mongoose
 SuperAgent = require 'superagent'
 
-SchemaFactory = require '../src'
-factory = new SchemaFactory(
-	mongoose: Mongoose
+Schemo = require '../src'
+
+db = Mongoose.createConnection()
+
+schemo = new Schemo(
+	mongoose: db
 	baseURL: 'http://www-test.bib-uni-mannheim.de/infolis'
 	apiPrefix: '/api/v1'
 	expandContext: 'basic'
+	schemo: require '../data/infolis-schema'
 )
-dump = (stuff) ->
-	console.log JSON.stringify stuff, null, 2
 
-schemaDefinitions = require '../data/infolis-schema'
-db = Mongoose.createConnection()
-
-PublicationSchema = factory.createSchema('Publication', schemaDefinitions.Publication)
-PublicationModel = db.model('Publication', PublicationSchema)
+PublicationSchema = schemo.schemas.Publication
+PublicationModel = schemo.models.Publication
 
 titles = [
 	'test1'
@@ -32,7 +30,7 @@ test 'CRUD', (t) ->
 	app = require('express')()
 	bodyParser = require('body-parser')
 	app.use(bodyParser.json())
-	factory.injectRestfulHandlers(app, PublicationModel)
+	schemo.handlers.restful.inject(app)
 	db.open  'localhost:27018/test'
 	id = null
 	db.once 'open', ->
@@ -92,7 +90,7 @@ test 'CRUD', (t) ->
 						postCB()
 				, (err) ->
 					request(app)
-					.get "/api/v1/publication?title=#{titles[0]}"
+					.get "/api/v1/publication?q=title:#{titles[0]}"
 					.end (err, res) ->
 						t.equals res.body.length, 1, 'Found exactly one with matching title'
 						cb()
@@ -110,6 +108,6 @@ test 'CRUD', (t) ->
 						cb()
 
 		], (err) ->
-			console.log err
+			console.log err if err
 			db.close()
 			t.end()

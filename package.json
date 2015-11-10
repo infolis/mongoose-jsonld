@@ -25,8 +25,8 @@
     "body-parser": "^1.12.2",
     "docker": "^0.2.14",
     "express": "^4.12.3",
-    "superagent": "^1.1.0",
-    "supertest": "^0.15.0",
+    "superagent": "^1.4.0",
+    "supertest": "^1.1.0",
     "tap-spec": "^3.0.0",
     "tape": "^4.0.0",
     "tapes": "^2.0.0"
@@ -38,8 +38,9 @@
     "jsonld-common-contexts": "0.0.12",
     "jsonld-rapper": "0.0.18",
     "merge": "^1.2.0",
-    "mongoose": "^4.1.9",
+    "mongoose": "^4.1.10",
     "node-uuid": "^1.4.3",
+    "tson": "0.0.5",
     "yamljs": "^0.2.4"
   }
 }
