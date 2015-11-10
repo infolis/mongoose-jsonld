@@ -2,16 +2,18 @@ YAML  = require 'yamljs'
 Utils = require '../utils'
 Base = require '../base'
 
+log = require('../log')(module)
+
 module.exports = class Swagger extends Base
 
 	inject: (app, swaggerDef, nextMiddleware) ->
 		swagger = "#{@apiPrefix}/swagger"
 		swagger = "/swagger"
-		console.log "Swagger available at #{swagger}.yaml"
+		log.debug "Swagger available at #{swagger}.yaml"
 		app.get "#{swagger}.yaml", (req, res, next) =>
 			res.header 'Content-Type', 'application/swagger+yaml'
 			res.send YAML.stringify @getSwagger(swaggerDef), 10, 2
-		console.log "Swagger available at #{swagger}.json"
+		log.debug "Swagger available at #{swagger}.json"
 		app.get "#{swagger}.json", (req, res, next) =>
 			res.header 'Content-Type', 'application/swagger+json'
 			res.send JSON.stringify @getSwagger(swaggerDef)
@@ -190,7 +192,7 @@ module.exports = class Swagger extends Base
 			if k == '@id'
 				continue
 			# if model.modelName == 'InfolisFile'
-				# console.log v
+				# log.debug v
 			if v.isRequired
 				definition.required.push k
 			propDef = {}
@@ -207,7 +209,7 @@ module.exports = class Swagger extends Base
 					propDef.type = type
 					propDef.items = {type: 'string'}
 				else
-					console.log "UNKNOWN TYPE", type
+					log.error "UNKNOWN TYPE", type
 			# if v.options['@context']['dc:example']
 				# propDef.example = v.options['@context']['dc:example']
 			# pathDef.type = v.

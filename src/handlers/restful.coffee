@@ -1,6 +1,8 @@
 Utils = require '../utils'
 Base = require '../base'
 
+log = require('../log')(module)
+
 module.exports = class RestfulHandler extends Base
 
 	inject: (app, nextMiddleware) ->
@@ -27,12 +29,12 @@ module.exports = class RestfulHandler extends Base
 				api["DELETE #{basePath}/!!"]   = @_DELETE_Collection
 				# DELETE /api/somethings/:id  => delete something with :id
 				api["DELETE #{basePath}/:id"]  = @_DELETE_Resource
-				console.log "Registering REST Handlers on basePath '#{basePath}'"
+				log.debug "Registering REST Handlers on basePath '#{basePath}'"
 				for methodAndPath, handle of api
 					do (methodAndPath, handle, nextMiddleware) =>
 						expressMethod = methodAndPath.substr(0, methodAndPath.indexOf(' ')).toLowerCase()
 						path = methodAndPath.substr(methodAndPath.indexOf(' ') + 1)
-						# console.log "#{expressMethod} '#{path}'"
+						# log.debug "#{expressMethod} '#{path}'"
 						app[expressMethod](
 							path
 							(req, res, next) -> handle.apply(self, [model, req, res, next])
@@ -40,7 +42,7 @@ module.exports = class RestfulHandler extends Base
 						)
 
 	_GET_Resource : (model, req, res, next) ->
-		console.log "GET #{model.modelName}##{req.params.id} "
+		log.debug "GET #{model.modelName}##{req.params.id}"
 		id = @_castId(model, res, req.params.id)
 		if not id
 			res.status 404
@@ -64,7 +66,7 @@ module.exports = class RestfulHandler extends Base
 				[k,v] = kvPair.split(':')
 				searchDoc[k] = v
 			searchDoc[@_pathNameForPropertyUri model, k] = v
-		console.log "GET every #{model.modelName} with #{JSON.stringify searchDoc}"
+		log.debug "GET every #{model.modelName} with #{JSON.stringify searchDoc}"
 		model.find searchDoc, (err, docs) ->
 			if err
 				res.status 500
@@ -74,17 +76,17 @@ module.exports = class RestfulHandler extends Base
 			next()
 
 	_DELETE_Collection: (model, req, res, next) ->
-		console.log "DELETE all #{model.modelName}"
+		log.warn "DELETE all #{model.modelName}"
 		model.remove {}, (err, removed) ->
 			if err
 				res.status 500
 				return next new Error(err)
 			res.status 200
-			console.log "Removed #{removed} documents"
+			log.debug "Removed #{removed} documents"
 			next()
 
 	_DELETE_Resource : (model, req, res, next) ->
-		console.log "DELETE #{model.modelName}##{req.params.id}"
+		log.warn "DELETE #{model.modelName}##{req.params.id}"
 		id = @_castId(model, res, req.params.id)
 		if not id
 			res.status 404
@@ -103,7 +105,7 @@ module.exports = class RestfulHandler extends Base
 	_POST_Resource: (model, req, res, next) ->
 		self = this
 		doc = new model(req.body)
-		console.log "POST new '#{model.modelName}' resource: #{JSON.stringify(doc.toJSON())}"
+		log.debug "POST new '#{model.modelName}' resource: #{JSON.stringify(doc.toJSON())}"
 
 		doc.save (err, newDoc) ->
 			if err or not newDoc
@@ -118,7 +120,7 @@ module.exports = class RestfulHandler extends Base
 				next()
 
 	_PUT_Resource : (model, req, res, next) ->
-		console.log "PUT #{model.modelName}##{req.params.id}"
+		log.debug "PUT #{model.modelName}##{req.params.id}"
 		input = req.body
 		id = @_castId(model, res, req.params.id)
 		if not id
@@ -147,8 +149,7 @@ module.exports = class RestfulHandler extends Base
 				else
 					id = toParse
 		catch e
-			console.log "Error happened when trying to cast '#{toParse}' to #{idType}"
-			console.log e
+			log.error "Error happened when trying to cast '#{toParse}' to #{idType}", e
 			res.status 404
 		return id
 
