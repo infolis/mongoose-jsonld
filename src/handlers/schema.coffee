@@ -7,7 +7,7 @@ module.exports = class SchemaHandlers extends Base
 
 	inject: (app, nextMiddleware) ->
 		for modelName, model of @models
-			do =>
+			do (model) =>
 				path = "#{@schemaPrefix}/#{model.modelName}"
 				log.debug "Binding schema handler #{path}"
 				app.get path, (req, res, next) =>
@@ -20,9 +20,8 @@ module.exports = class SchemaHandlers extends Base
 						@expressJsonldMiddleware(req, res, next)
 				for propPath, propDef of model.schema.paths
 					continue if Utils.INTERNAL_FIELD_REGEX.test propPath
-					# log.debug propPath
-					do (propDef) =>
-						app.get "#{@schemaPrefix}/#{propPath}", (req, res, next) =>
+					app.get "#{@schemaPrefix}/#{propPath}", (req, res, next) =>
+						do (propPath, propDef) =>
 							req.jsonld = propDef.options['@context']
 							if not req.headers.accept or req.headers.accept in ['*/*', 'application/json']
 								res.send JSON.stringify(req.jsonld, null, 2)
