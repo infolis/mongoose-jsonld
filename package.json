@@ -33,7 +33,7 @@
   },
   "dependencies": {
     "async": "^1.5.0",
-    "chalk": "^1.1.1",
+    "infolis-logging": "^0.0.1",
     "express-jsonld": "0.0.15",
     "jsonld-common-contexts": "0.0.12",
     "jsonld-rapper": "0.0.18",
@@ -41,7 +41,6 @@
     "mongoose": "^4.1.10",
     "node-uuid": "^1.4.3",
     "tson": "0.0.5",
-    "winston": "^2.1.0",
     "yamljs": "^0.2.4"
   }
 }
