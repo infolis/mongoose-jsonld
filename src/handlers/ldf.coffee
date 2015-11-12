@@ -45,11 +45,12 @@ module.exports = class LdfHandlers extends Base
 			query = model.find mongoQuery
 			query.exec (err, docs) =>
 				return doneModel err if err
-				Async.eachSeries docs, (doc, doneDocs) =>
+				Async.eachLimit docs, 10, (doc, doneDocs) =>
 					doc.jsonldABox jsonldABoxOpts, (err, triples) =>
-						Async.eachSeries triples, (triple, doneField) =>
+						Async.eachLimit triples, ldfQuery.limit, (triple, doneField) =>
 							if ldfQuery.predicate and not Utils.lastUriSegmentMatch(triple.predicate, ldfQuery.predicate)
 								return doneField()
+							# XXX SLOoooooOOoooOW
 							if ldfQuery.object and not Utils.literalValueMatch(triple.object, ldfQuery.object)
 								return doneField()
 							currentTriple += 1

@@ -252,6 +252,9 @@ module.exports = class Factory extends Base
 			else if 'refOne' of propDef
 				propDef.type = String
 				propDef.ref = propDef.refOne
+
+			# XXX Index
+			# propDef.index = true
 			schema.add("#{propName}": propDef)
 			schema.paths[propName].options or= {}
 			schema.paths[propName].options['@context'] = pc
