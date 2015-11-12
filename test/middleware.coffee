@@ -4,6 +4,7 @@ test = require 'tapes'
 Mongoose = require 'mongoose'
 request = require 'supertest'
 SuperAgent = require 'superagent'
+TSON = require 'tson'
 
 Schemo = require '../src'
 
@@ -14,7 +15,8 @@ schemo = new Schemo(
 	baseURL: 'http://www-test.bib-uni-mannheim.de/infolis'
 	apiPrefix: '/api/v1'
 	expandContext: 'basic'
-	schemo: require '../data/infolis-schema'
+	# schemo: TSON.load "#{__dirname}/../data/simple-schema.tson"
+	schemo: require "#{__dirname}/../data/simple-schema"
 )
 
 PublicationSchema = schemo.schemas.Publication
@@ -31,7 +33,7 @@ test 'CRUD', (t) ->
 	bodyParser = require('body-parser')
 	app.use(bodyParser.json())
 	schemo.handlers.restful.inject(app)
-	db.open  'localhost:27018/test'
+	db.open 'localhost:27018/test'
 	id = null
 	db.once 'open', ->
 		Async.series [

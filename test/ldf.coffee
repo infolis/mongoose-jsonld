@@ -12,7 +12,7 @@ _connect = ->
 		baseURI: 'http://infolis.gesis.org/infolink'
 		apiPrefix: '/api'
 		expandContext: 'basic'
-		schemo: TSON.load '/home/infolis-web/infolis-web/data/infolis.tson'
+		schemo: TSON.load "#{__dirname}/../../infolis-web/data/infolis.tson"
 	)
 
 _disconnect = ->
@@ -24,7 +24,7 @@ test 'ldf', (t) ->
 	ldfQuery = {
 		subject: 'http://infolis.gesis.org/infolink/api/entity/feedad30-7ccc-11e5-9b91-89b7ea6546e3'
 	}
-	schemo.handleLinkedDataFragmentsQuery ldfQuery, tripleStream, (err) ->
+	schemo.handlers.ldf.handleLinkedDataFragmentsQuery ldfQuery, tripleStream, (err) ->
 		# console.log "Triplestream:"
 		console.log tripleStream.length
 		_disconnect()
