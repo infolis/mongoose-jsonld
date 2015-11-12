@@ -1,6 +1,6 @@
 Async = require 'async'
 Utils = require '../utils'
-Base = require '../base'
+Base  = require '../base'
 
 log = require('../log')(module)
 
