@@ -1,0 +1,320 @@
+# vim: ft=turtleson ts=2 sw=2 list :
+@ns
+	# infolis <http://www-test.bib.uni-mannheim.de/infolis/schema/>
+	# infolis <http://localhost:3000/schema/>
+	dc      <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+	dc      <http://purl.org/dc/elements/1.1/>
+	owl     <http://www.w3.org/2002/07/owl#>
+	rdfs    <http://www.w3.org/2000/01/rdf-schema#>
+	skos    <http://www.w3.org/2004/02/skos/core#>
+	xsd     <http://www.w3.org/2001/XMLSchema#>
+	dcterms <http://purl.org/dc/terms/>
+	schema  <http://schema.org/>
+	bibo    <http://purl.org/ontology/bibo/>
+	foaf    <http://xmlns.com/foaf/0.1/>
+	science <http://semanticscience.org/resource/>
+	dqm     <http://purl.org/dqm-vocabulary/v1/dqm#>
+	uri4uri <http://uri4uri.net/vocab#>
+	dm2e    <http://onto.dm2e.eu/schema/dm2e/>
+	omnom   <http://onto.dm2e.eu/schema/omnom/>
+	dcat    <http://www.w3.org/ns/dcat#>
+
+@context
+	@id: infolis:
+	dc:description "Infolis Data model"
+	dc:version
+		@value "2015-03-15"
+		@type xsd:int
+	rdfs:seeAlso
+		@type @id
+
+Execution
+	@context
+		dc:description "The concrete execution of an Algorithm"
+		rdfs:subClassOf 
+			@id schema:Action
+		rdfs:seeAlso
+			@id: 'infolis:Algorithm'
+	algorithm
+		@context
+			dc:description "Java Class of this algorithm"
+		required true
+		type String
+	log
+		@context
+			dc:description "Log messages"
+		type: []
+	status
+		@context
+			dc:description "Status of this execution"
+			dc:example 'SUCCESS'
+		required true
+		type String
+		enum: [
+			"PENDING"
+			"STARTED"
+			"FAILED"
+			"FINISHED"
+		]
+	startTime
+		@context
+			owl:sameAs schema:startTime
+			@type xsd:date
+			dc:description "Timestamp of the begin of this execution"
+		type Date
+	endTime
+		@context
+			owl:sameAs schema:endTime
+			@type xsd:date
+			dc:description "Timestamp when the execution of this algorithm finished."
+		type Date
+	#
+	# Parameters
+	#
+	inputFiles
+		@context
+			dc:description "List of URIs of input files"
+		type: ArrayOfStrings
+	outputFiles
+		@context
+			dc:description "List of URIs of output files"
+		type: ArrayOfStrings
+	removeBib
+		@context
+			dc:description "Whether to remove the bibliography from a text document."
+		type String
+	outputDirectory
+		@context
+			dc:description "Output directory of the indexer."
+		type String
+	phraseSlop
+		@context
+			dc:description "Phrase Slop for Lucene indexer."
+		type: Number
+	allowLeadingWildcards
+		@context
+			dc:description "Whether leading wildcards are allowed"
+		type Boolean
+	maxClauseCount
+		@context
+			dc:description "TODO"
+		type: Number
+	searchTerm
+		@context
+			dc:description "TODO"
+		type String
+	searchQuery
+		@context
+			dc:description "TODO"
+		type String
+	textualReferences
+		@context
+			dc:description "References found"
+		type ArrayOfStrings
+	matchingFiles
+		@context
+			dc:description "Matching files"
+		type ArrayOfStrings
+	patterns
+		@context
+			dc:description "Generated patterns"
+		type ArrayOfStrings
+	seeds
+		@context
+			dc:description "The initial seeds for learning."
+		type ArrayOfStrings
+	maxIterations
+		@context
+			dc:description "Maximum number of iterations."
+		type Number
+	reliabilityThreshold
+		@context
+			dc:description "TODO"
+		type Number
+	links
+		@context
+			dc:description "The found EntityLinks."
+		type ArrayOfStrings
+	queryServices
+		@context
+			dc:description "List of QueryService to use"
+		type ArrayOfStrings
+	searchResults
+		@context
+			dc:description "Search results"
+		type ArrayOfStrings
+
+SearchQuery
+	@context
+		dc:description "A search query"
+	query
+		@context
+			dc:description "The query string"
+		type String
+		required: yes
+
+Entity
+	@context
+		dc:description "An entity to be linked from or to, a Dataset or a Publication or a SearchResult"
+	name
+		@context
+			dc:description "TODO"
+		type String
+	identifier
+		@context
+			dc:description "TODO"
+		type String
+	tags
+		@context
+			dc:description "TODO"
+		type ArrayOfStrings
+	textualReferences
+		@context
+			dc:description "TODO"
+		type ArrayOfStrings
+	infolisFile
+		@context
+			dc:description "The InfolisFile that manifests this entity"
+		type String
+
+SearchResult
+	@context
+		dc:description "A search result"
+		rdfs:subClassOf
+			@id infolis:Entity
+	name
+		@context
+			dc:description "TODO"
+		type String
+	identifier
+		@context
+			dc:description "TODO"
+		type String
+	tags
+		@context
+			dc:description "TODO"
+		type ArrayOfStrings
+	textualReferences
+		@context
+			dc:description "TODO"
+		type ArrayOfStrings
+	listIndex
+		@context
+			dc:description "Position in the list of search results"
+		type Number
+	relevanceScore
+		@context
+			dc:description "Relevance score as calculated by the search engine"
+		type Number
+	date
+		@context
+			dc:description "TODO"
+		type String
+	queryService
+		@context
+			dc:description "TODO"
+		type String
+	titles
+		@context
+			dc:description "TODO"
+		type ArrayOfStrings
+	numericInformation
+		@context
+			dc:description "TODO"
+		type ArrayOfStrings
+
+Pattern
+	@context
+		dc:description 'A Regular Expression pattern'
+	patternRegex
+		@context
+			@id dqm:regex
+		type String
+	luceneQuery
+		@context
+			dc:description "TODO"
+		type String
+	minimal
+		@context
+			dc:description "TODO"
+		type String
+	words
+		@context
+			dc:description "TODO"
+		type ArrayOfStrings
+	threshold
+		@context
+			dc:description "TODO"
+		type Number
+	reliability
+		@context
+			dc:description "TODO"
+		type Number
+
+
+InfolisFile
+	@context
+		owl:sameAs
+			@id omnom:File
+	md5
+		@context
+			owl:sameAs
+				@id omnom:md5
+			@type xsd:string
+			dc:description "MD5 checksum"
+		type String
+		validate 'MD5'
+		required: no
+	fileName
+		@context
+			@type @id
+			owl:sameAs
+				@id omnom:fileName
+		type String
+		required: no
+	mediaType
+		@context
+			owl:sameAs dcat:mediaType
+			dc:description "The IANA media type of this file"
+		type String
+		enum: [
+			"application/pdf"
+			"text/plain"
+		]
+		required: no
+	fileStatus
+		@context
+			@id omnom:fileStatus
+		type: String
+		enum: [
+			'AVAILABLE'
+			'DELETED'
+		]
+		required: no
+	tags
+		@context
+			owl:sameAs
+				@id dc:subject
+			dc:description "A set of free form tags to attach to files"
+		type ArrayOfStrings
+		required: no
+	created
+		type Date
+		@context
+			owl:sameAs
+				@id: dc:created
+			dc:description "Timestamp when this File was uploaded"
+
+QueryService
+	@context
+		dc:description "A query service"
+	reliability
+		@context
+			dc:description "The reliablity of this QueryService"
+		type: Number
+		required: yes
+	target
+		@context
+			dc:description "The target of this QueryService, in most cases a URI"
+		type: String
+		required: yes
