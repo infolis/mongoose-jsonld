@@ -1,5 +1,6 @@
+Async = require 'async'
 Utils = require '../utils'
-Base = require '../base'
+Base  = require '../base'
 
 module.exports = class LdfHandlers extends Base
 
