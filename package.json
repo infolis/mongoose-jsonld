@@ -36,7 +36,7 @@
     "infolis-logging": "^0.0.1",
     "express-jsonld": "0.0.15",
     "jsonld-common-contexts": "0.0.12",
-    "jsonld-rapper": "0.0.18",
+    "jsonld-rapper": "^0.1.0",
     "merge": "^1.2.0",
     "mongoose": "^4.1.10",
     "node-uuid": "^1.4.3",
