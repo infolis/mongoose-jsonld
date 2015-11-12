@@ -3,6 +3,8 @@ Uuid     = require 'node-uuid'
 Utils = require './utils'
 Base  = require './base'
 
+log = require('./log')(module)
+
 module.exports = class Factory extends Base
 
 	constructor : (opts = {}) ->
@@ -20,8 +22,10 @@ module.exports = class Factory extends Base
 		ret['@context'] or= {}
 		schemaContext = doc.schema.options['@context']
 		if schemaContext
-			ret['@type'] = schemaContext['@id']
-			ret['@context'][ret['@type']] = schemaContext
+			shortName = "_type_#{Utils.lastUriSegment(schemaContext['@id'])}"
+			ret['@type'] = shortName
+			ret['@context'][shortName] = schemaContext
+
 		# Walk the schema path definitions, adding their @context under their
 		# path into the context for the schema
 		for schemaPathName of doc.toJSON()
@@ -31,7 +35,7 @@ module.exports = class Factory extends Base
 			continue if Utils.INTERNAL_FIELD_REGEX.test schemaPathName
 			if not schemaPathDef
 				#XXX TODO
-				console.log "Error: #{schemaPathName} l38"
+				log.error "Error: #{schemaPathName} FIXME"
 				continue
 			# Add property data to the context
 			propContext = schemaPathDef.options?['@context']
@@ -55,6 +59,13 @@ module.exports = class Factory extends Base
 		# Delete '_id' unless explicitly kept
 		# if opts.keep_id
 		#     ret._id = doc._id
+		# XXX won't work for rdf type and such
+		# if opts.filter_predicate
+		#     predicates_to_keep = (Utils.lastUriSegment(uri) for uri in opts.filter_predicate)
+		#     log.silly "predicates to keep", predicates_to_keep
+		#     for path of ret
+		#         continue if Utils.INTERNAL_FIELD_REGEX.test(path) or Utils.JSONLD_FIELD_REGEX.test(path)
+		#         delete ret[path] unless path in predicates_to_keep
 		return ret
 
 	_createDocumentFromObject : (model, obj) ->
@@ -133,7 +144,8 @@ module.exports = class Factory extends Base
 				innerOpts = Merge(opts, innerOpts)
 				if cb
 					return factory.serialize factory._listAssertions(doc, innerOpts), innerOpts, cb
-				return factory._listAssertions(doc, innerOpts)
+				else
+					return factory._listAssertions(doc, innerOpts)
 			#
 			# Get the uri of this document
 			#

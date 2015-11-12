@@ -44,7 +44,7 @@ module.exports = class Schemo extends Base
 		@handlers = {}
 		for m in ['schema', 'restful', 'swagger', 'ldf']
 			mod = require "./handlers/#{m}"
-			log.info "Registering '#{m}' handler"
+			log.debug "Registering '#{m}' handler"
 			@handlers[m] = new mod(@)
 
 		#

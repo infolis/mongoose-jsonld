@@ -1,4 +1,5 @@
-{inspect}      = require 'util'
+N3Util    = require('n3').Util
+{inspect} = require 'util'
 
 module.exports = class Utils
 
@@ -6,6 +7,8 @@ module.exports = class Utils
 	# Regex for matching internal mongoose / mongodb fields
 	#
 	@INTERNAL_FIELD_REGEX: /^[\$_]/
+
+	@JSONLD_FIELD_REGEX: /^@/
 
 	@CONTEXT_FIELD_REGEX: /^@context$/
 
@@ -16,10 +19,28 @@ module.exports = class Utils
 		str.substr(0,1).toLowerCase() + str.substr(1)
 
 	#
-	# Everything after the last '/' slash
+	# Everything after the last '/' slash or the '#' fragment separator
 	#
 	@lastUriSegment : (uri) ->
-		return uri.substr(uri.lastIndexOf('/') + 1)
+		if uri.indexOf('#') > -1
+			return uri.substr(uri.lastIndexOf('#') + 1)
+		else if uri.indexOf('/') > -1
+			return uri.substr(uri.lastIndexOf('/') + 1)
+		else
+			return uri
+
+	#
+	# Return true if everything after the last '/' slash matches for two strings
+	#
+	@lastUriSegmentMatch : (a, b) ->
+		return Utils.lastUriSegment(a) is Utils.lastUriSegment(b)
+
+	@literalValueMatch : (a, b) ->
+		if a is b
+			return true
+		a = N3Util.getLiteralValue() if N3Util.isLiteral(a)
+		b = N3Util.getLiteralValue() if N3Util.isLiteral(b)
+		return a is b
 
 	@withoutContext : (def) ->
 		out = {}

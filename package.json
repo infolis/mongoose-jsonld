@@ -33,12 +33,13 @@
   },
   "dependencies": {
     "async": "^1.5.0",
-    "infolis-logging": "^0.0.1",
     "express-jsonld": "0.0.16",
+    "infolis-logging": "^0.0.1",
     "jsonld-common-contexts": "0.0.12",
     "jsonld-rapper": "^0.1.0",
     "merge": "^1.2.0",
     "mongoose": "^4.1.10",
+    "n3": "^0.4.5",
     "node-uuid": "^1.4.3",
     "tson": "0.0.5",
     "yamljs": "^0.2.4"

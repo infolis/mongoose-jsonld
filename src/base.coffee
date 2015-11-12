@@ -1,6 +1,6 @@
 Async          = require 'async'
 CommonContexts = require 'jsonld-common-contexts'
-JsonldRapper   = require 'jsonld-rapper'
+JsonldRapper   = require 'jsonld-rapper/src'
 ExpressJSONLD  = require 'express-jsonld'
 Merge          = require 'merge'
 
