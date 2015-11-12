@@ -1,10 +1,28 @@
+Async = require 'async'
 Utils = require '../utils'
 Base = require '../base'
+
+log = require('../log')(module)
 
 module.exports = class LdfHandlers extends Base
 
 	inject: (app, nextMiddleware) ->
+		app.get "/#{@apiPrefix}/ldf", (req, res) ->
+			# TODO
+			res.end()
 
+	###
+	#
+	# if not ('subject' or 'predicate' or 'object')
+	# 	for model in @models
+	# if 'subject' and not 'predicate' and not 'object'
+	# 	doc.jsonldABox -> content-negotiate
+	# if 
+	#
+	# @param ldfQuery {object} the triple pattern (subject, predicate, object), offset and limit
+	# @param tripleStream {stream} the trieple stream
+	# @param doneLDF called when finished
+	###
 	handleLinkedDataFragmentsQuery: (ldfQuery, tripleStream, doneLDF) ->
 		mongoQuery = {}
 		projection = null
@@ -16,7 +34,7 @@ module.exports = class LdfHandlers extends Base
 
 		ldfQuery.offset or= 0
 		ldfQuery.limit  or= 10
-		console.log mongoQuery
+		log.debug mongoQuery
 
 		currentTriple = 0
 		Async.forEachOfSeries @models, (model, modelName, doneModel) =>
@@ -54,6 +72,11 @@ module.exports = class LdfHandlers extends Base
 			doneLDF err
 
 	_makeTriple: (doc, fieldName, value) ->
+		log.debug doc.schema.options
+		if typeof value is 'boolean'
+			value = "\"#{value}\"^^<http://www.w3.org/2001/XMLSchema#boolean>"
+		else if typeof value is 'number'
+			value = "\"#{value}\"^^<http://www.w3.org/2001/XMLSchema#long>"
 		subject: doc.uri()
 		predicate: doc.uriForClass(fieldName)
 		object: value
