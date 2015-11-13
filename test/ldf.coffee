@@ -32,28 +32,48 @@ test 'ldf-limit', (t) ->
 		status:'PENDING'
 		algorithm: 'io.github.infolis.algorithm.Indexer'
 	)
+	console.time('ldf')
 	Async.series [
 		(cb) -> doc1.save cb
 		(cb) ->
+			console.time('subject+predicate')
 			schemo.handlers.ldf.handleLinkedDataFragmentsQuery {subject: doc1.uri(), predicate: 'type'}, tripleStream, (err) ->
 				return cb err if err
+				console.timeEnd('subject+predicate')
 				t.equals tripleStream.length, 1, 'One type'
-				t.equals tripleStream[0].object, BASEURI + '/schema/Execution', 'correct type'
+				# t.equals tripleStream[0].object, BASEURI + '/schema/Execution', 'correct type'
 				return cb()
 		(cb) ->
+			console.time('subject+predicate')
+			schemo.handlers.ldf.handleLinkedDataFragmentsQuery {subject: doc1.uri(), predicate: 'algorithm'}, tripleStream, (err) ->
+				console.timeEnd('subject+predicate')
+				return cb err if err
+				t.equals tripleStream.length, 1, 'One algorithm'
+				return cb()
+		(cb) ->
+			console.time('object')
 			schemo.handlers.ldf.handleLinkedDataFragmentsQuery {object: '"PENDING"'}, tripleStream, (err) ->
+				console.timeEnd('object')
 				return cb err if err
 				t.ok tripleStream.length >= 1, 'At least one PENDING execution'
 				return cb()
 		(cb) -> doc2.save cb
 		(cb) ->
-			schemo.handlers.ldf.handleLinkedDataFragmentsQuery {predicate: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type'}, tripleStream, (err) ->
+			console.time('predicate')
+			schemo.handlers.ldf.handleLinkedDataFragmentsQuery {predicate: 'foo.bar/algorithm'}, tripleStream, (err) ->
+				console.timeEnd('predicate')
 				return cb err if err
-				t.ok tripleStream.length > 1, 'More than one with rdf:type'
-				t.equals tripleStream[0].object, BASEURI + '/schema/Execution', 'correct type'
+				t.ok tripleStream.length > 1, 'More than one with algorithm'
 				return cb()
+		# (cb) ->
+			# schemo.handlers.ldf.handleLinkedDataFragmentsQuery {predicate: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type'}, tripleStream, (err) ->
+				# return cb err if err
+				# t.ok tripleStream.length > 1, 'More than one with rdf:type'
+				# t.equals tripleStream[0].object, BASEURI + '/schema/Execution', 'correct type'
+				# return cb()
 	], (err) ->
 		t.fail "Error: #{err}" if err
+		console.timeEnd('ldf')
 		_disconnect()
 		t.end()
 
