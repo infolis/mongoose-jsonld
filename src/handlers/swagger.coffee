@@ -31,8 +31,8 @@ module.exports = class Swagger extends Base
 				description: 'Automatically generated API'
 			}
 			{
-				name: 'custom'
-				description: 'Custom methods'
+				name: 'helper'
+				description: 'Helpers. Not RESTful but USEful.'
 			}
 		]
 		swaggerDef.consumes or= [
@@ -66,7 +66,7 @@ module.exports = class Swagger extends Base
 	getSwaggerPath: (model) ->
 		modelName = model.modelName
 		modelNameLC = Utils.lcfirst model.modelName
-		tags = ["mongoose-jsonld", "#{modelNameLC}"]
+		tags = ["rest-ld-all", "rest-ld-#{modelNameLC}"]
 
 		ret = {}
 		pathCollection = "#{@apiPrefix}/#{modelNameLC}"
@@ -79,7 +79,7 @@ module.exports = class Swagger extends Base
 
 		ret[pathCollection].get =
 			tags: tags
-			description: "Get every [#{modelName}](#{@schemaPrefix}/#{modelName})",
+			summary: "Get every [#{modelName}](#{@schemaPrefix}/#{modelName})",
 			parameters: [
 				name: 'q'
 				in: "query"
@@ -97,7 +97,7 @@ module.exports = class Swagger extends Base
 
 		ret[pathItem].get =
 			tags: tags
-			description: "Return #{modelName} with _id {id}",
+			summary: "Return #{modelName} with _id {id}",
 			parameters: [
 				in: "path"
 				name: "id"
@@ -116,7 +116,7 @@ module.exports = class Swagger extends Base
 
 		ret[pathCollection].post =
 			tags: tags
-			description: "Post a new #{modelName}",
+			summary: "Post a new #{modelName}",
 			parameters: [
 					name: modelNameLC
 					in: "body"
@@ -133,7 +133,7 @@ module.exports = class Swagger extends Base
 
 		ret[pathItem].put =
 			tags: tags
-			description: "Replace #{modelName} with new #{modelName}",
+			summary: "Replace #{modelName} with new #{modelName}",
 			parameters: [
 				in: "path"
 				name: "id"
@@ -152,7 +152,7 @@ module.exports = class Swagger extends Base
 
 		ret[pathItem].delete =
 			tags: tags
-			description: "Delete #{modelName} with _id {id}",
+			summary: "Delete #{modelName} with _id {id}",
 			parameters: [
 				in: "path"
 				name: "id"
@@ -168,7 +168,7 @@ module.exports = class Swagger extends Base
 
 		ret[pathCollectionDelete].delete =
 			tags: tags
-			description: "Delete all #{modelName}",
+			summary: "Delete all #{modelName}",
 			responses:
 				200:
 					description: "Annihilated all #{modelName}"
