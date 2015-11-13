@@ -33,13 +33,14 @@ module.exports = class LdfHandlers extends Base
 		ldf.limit  or= 10
 
 		currentTriple = 0
+		log.start('handle-ldf')
 		Async.forEachOfSeries @models, (model, modelName, doneModel) =>
 			mongoQuery = @_buildMongoQuery(ldf, model)
 			log.silly "Mongo query:", mongoQuery
 			query = model.find mongoQuery
 			query.exec (err, docs) =>
 				return doneModel err if err
-				Async.eachLimit docs, 10, (doc, doneDocs) =>
+				Async.eachLimit docs, 20, (doc, doneDocs) =>
 					doc.jsonldABox jsonldABoxOpts, (err, triples) =>
 						Async.each triples, (triple, doneField) =>
 							# if ldf.predicate and Utils.lastUriSegment(triple.predicate) is 'type'
@@ -61,6 +62,7 @@ module.exports = class LdfHandlers extends Base
 					return doneModel err
 		, (err) ->
 			log.silly "Finished query: #{err}"
+			log.logstop('handle-ldf')
 			if err instanceof Error
 				doneLDF err
 			else

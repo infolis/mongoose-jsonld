@@ -25,6 +25,12 @@ test 'ldf-limit', (t) ->
 				log.logstop('save')
 				cb.apply(this, arguments)
 		(cb) ->
+			log.start('ensureIndexes')
+			base.schemo.models.Execution.ensureIndexes (err) ->
+				log.logstop('ensureIndexes')
+				log.error err if err
+				cb.apply(this, arguments)
+		(cb) ->
 			title = 'subject+predicate [type]'
 			log.start title
 			base.schemo.handlers.ldf.handleLinkedDataFragmentsQuery {subject: doc1.uri(), predicate: 'type'}, tripleStream, (err) ->
