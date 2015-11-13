@@ -167,6 +167,12 @@ module.exports = class Factory extends Base
 					return factory.serialize factory._listDescription(model, innerOpts), innerOpts, cb
 				return factory._listDescription(model, innerOpts)
 			#
+			# List of all proper fields
+			#
+			schema.statics.properFields = ->
+				(v for v of @schema.paths when not Utils.INTERNAL_FIELD_REGEX.test(v) and
+					not Utils.JSONLD_FIELD_REGEX.test v)
+			#
 			# Find one document and retrieve all inter-collection joins
 			#
 			schema.statics.findOneAndPopulate = (searchDoc, cb) ->

@@ -206,3 +206,9 @@ test 'convert to turtle', (t) ->
 		# console.log dat
 		_disconnect()
 		t.end()
+
+test.only 'properFields', (t) ->
+	_connect()
+	console.log schemo.models.Publication.properFields()
+	_disconnect()
+
