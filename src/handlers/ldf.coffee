@@ -42,10 +42,11 @@ module.exports = class LdfHandlers extends Base
 				Async.eachLimit docs, 10, (doc, doneDocs) =>
 					doc.jsonldABox jsonldABoxOpts, (err, triples) =>
 						Async.each triples, (triple, doneField) =>
-							if ldf.predicate and not Utils.lastUriSegmentMatch(triple.predicate, ldf.predicate)
+							# if ldf.predicate and Utils.lastUriSegment(triple.predicate) is 'type'
+							if ldf.object and not Utils.literalValueMatch(triple.object, ldf.object)
 								return doneField()
-							# if ldf.object and not Utils.literalValueMatch(triple.object, ldf.object)
-								# return doneField()
+							else if ldf.predicate and not Utils.lastUriSegmentMatch(triple.predicate, ldf.predicate)
+								return doneField()
 							currentTriple += 1
 							if currentTriple > ldf.offset + ldf.limit
 								return doneField "max count reached (#{currentTriple} > #{ldf.offset} + #{ldf.limit})"
@@ -66,37 +67,38 @@ module.exports = class LdfHandlers extends Base
 				doneLDF null, tripleStream
 
 	_buildMongoQuery : (ldf, model) ->
-			mongoQuery = {}
+		mongoQuery = {}
+		if ldf.subject
+			mongoQuery._id = Utils.lastUriSegment(ldf.subject)
+		if ldf.object
+			ldf.object = Utils.literalValue(ldf.object)
+		if ldf.predicate and ldf.predicate isnt 'type'
 			if ldf.object
-				ldf.object = Utils.literalValue(ldf.object)
-			if ldf.subject
-				mongoQuery._id = Utils.lastUriSegment(ldf.subject)
-			if ldf.predicate and ldf.object
 				clause = @_make_clause(model, Utils.lastUriSegment(ldf.predicate), ldf.object)
 				if clause
 					mongoQuery[k] = v for k,v of clause
-			else if ldf.predicate
-				mongoQuery[Utils.lastUriSegment(ldf.predicate)] = {$exists:true}
-			else if ldf.object
-				orQuery = []
-				for field in model.properFields()
-					clause = @_make_clause(model, field, ldf.object)
-					orQuery.push clause if clause
-				mongoQuery['$or'] = orQuery
-			return mongoQuery
-
-		_make_clause: (model, field, value) ->
-			clause = {}
-			if field not of model.schema.paths
-				return null
-			fieldType = model.schema.paths[field].instance
-			if fieldType is 'Number'
-				clause[field] = value if Utils.isNumber(value)
-			else if fieldType is 'Date'
-				clause[field] = value if Utils.isDate(value)
 			else
-				clause[field] = value
-			if Object.keys(clause).length > 0
-				return clause
+				mongoQuery[Utils.lastUriSegment(ldf.predicate)] = {$exists:true}
+		else if ldf.object
+			orQuery = []
+			for field in model.properFields()
+				clause = @_make_clause(model, field, ldf.object)
+				orQuery.push clause if clause
+			mongoQuery['$or'] = orQuery
+		return mongoQuery
+
+	_make_clause: (model, field, value) ->
+		clause = {}
+		if field not of model.schema.paths
 			return null
+		fieldType = model.schema.paths[field].instance
+		if fieldType is 'Number'
+			clause[field] = value if Utils.isNumber(value)
+		else if fieldType is 'Date'
+			clause[field] = value if Utils.isDate(value)
+		else
+			clause[field] = value
+		if Object.keys(clause).length > 0
+			return clause
+		return null
 

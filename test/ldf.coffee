@@ -6,74 +6,75 @@ test     = require 'tapes'
 
 log = require('infolis-logging')(module)
 
-schemo = null
-db = null
+base = require('./base')
 
-BASEURI = 'http://infolis.gesis.org/infolink'
-_connect = ->
-	schemo = new Schemo(
-		mongoose: Mongoose.createConnection('mongodb://localhost:27018/infolis-web')
-		baseURI: BASEURI
-		apiPrefix: '/api'
-		schemo: TSON.load "#{__dirname}/../../infolis-web/data/infolis.tson"
-	)
-
-_disconnect = ->
-	schemo.mongoose.close()
+data2 = data1 =
+	status:'PENDING'
+	algorithm: 'io.github.infolis.algorithm.Indexer'
 
 test 'ldf-limit', (t) ->
-	_connect()
+	base.connect()
 	tripleStream = []
-	doc1 = new schemo.models.Execution(
-		status:'PENDING'
-		algorithm: 'io.github.infolis.algorithm.Indexer'
-	)
-	doc2 = new schemo.models.Execution(
-		status:'PENDING'
-		algorithm: 'io.github.infolis.algorithm.Indexer'
-	)
-	console.time('ldf')
+	doc1 = new base.schemo.models.Execution(data1)
+	doc2 = new base.schemo.models.Execution(data2)
+	log.start('ldf')
 	Async.series [
-		(cb) -> doc1.save cb
 		(cb) ->
-			console.time('subject+predicate')
-			schemo.handlers.ldf.handleLinkedDataFragmentsQuery {subject: doc1.uri(), predicate: 'type'}, tripleStream, (err) ->
+			log.start('save')
+			doc1.save ->
+				log.logstop('save')
+				cb.apply(this, arguments)
+		(cb) ->
+			title = 'subject+predicate [type]'
+			log.start title
+			base.schemo.handlers.ldf.handleLinkedDataFragmentsQuery {subject: doc1.uri(), predicate: 'type'}, tripleStream, (err) ->
 				return cb err if err
-				console.timeEnd('subject+predicate')
-				t.equals tripleStream.length, 1, 'One type'
-				# t.equals tripleStream[0].object, BASEURI + '/schema/Execution', 'correct type'
+				log.logstop title
+				t.equals tripleStream.length, 1, title
+				t.equals tripleStream[0].object, base.BASEURI + '/schema/Execution', 'correct type'
 				return cb()
 		(cb) ->
-			console.time('subject+predicate')
-			schemo.handlers.ldf.handleLinkedDataFragmentsQuery {subject: doc1.uri(), predicate: 'algorithm'}, tripleStream, (err) ->
-				console.timeEnd('subject+predicate')
+			title = 'subject+predicate [algorithm]'
+			log.start(title)
+			base.schemo.handlers.ldf.handleLinkedDataFragmentsQuery {subject: doc1.uri(), predicate: 'algorithm'}, tripleStream, (err) ->
 				return cb err if err
-				t.equals tripleStream.length, 1, 'One algorithm'
+				log.logstop(title)
+				log.debug tripleStream
+				t.equals tripleStream.length, 1, title
 				return cb()
 		(cb) ->
-			console.time('object')
-			schemo.handlers.ldf.handleLinkedDataFragmentsQuery {object: '"PENDING"'}, tripleStream, (err) ->
-				console.timeEnd('object')
+			title = 'object [PENDING]'
+			log.start(title)
+			base.schemo.handlers.ldf.handleLinkedDataFragmentsQuery {object: '"PENDING"'}, tripleStream, (err) ->
+				log.logstop(title)
 				return cb err if err
 				t.ok tripleStream.length >= 1, 'At least one PENDING execution'
 				return cb()
-		(cb) -> doc2.save cb
 		(cb) ->
-			console.time('predicate')
-			schemo.handlers.ldf.handleLinkedDataFragmentsQuery {predicate: 'foo.bar/algorithm'}, tripleStream, (err) ->
-				console.timeEnd('predicate')
+			log.start('save')
+			doc2.save ->
+				log.logstop('save')
+				cb.apply(this, arguments)
+		(cb) ->
+			title = 'predicate [algorithm]'
+			log.start(title)
+			base.schemo.handlers.ldf.handleLinkedDataFragmentsQuery {predicate: 'foo.bar/algorithm'}, tripleStream, (err) ->
+				log.logstop(title)
 				return cb err if err
 				t.ok tripleStream.length > 1, 'More than one with algorithm'
 				return cb()
-		# (cb) ->
-			# schemo.handlers.ldf.handleLinkedDataFragmentsQuery {predicate: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type'}, tripleStream, (err) ->
-				# return cb err if err
-				# t.ok tripleStream.length > 1, 'More than one with rdf:type'
-				# t.equals tripleStream[0].object, BASEURI + '/schema/Execution', 'correct type'
-				# return cb()
+		(cb) ->
+			title = "predicate [rdf:type]"
+			log.start(title)
+			base.schemo.handlers.ldf.handleLinkedDataFragmentsQuery {predicate: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type'}, tripleStream, (err) ->
+				return cb err if err
+				log.logstop(title)
+				t.ok tripleStream.length > 1, 'More than one with rdf:type'
+				t.equals tripleStream[0].object, base.BASEURI + '/schema/Execution', 'correct type'
+				return cb()
 	], (err) ->
 		t.fail "Error: #{err}" if err
-		console.timeEnd('ldf')
-		_disconnect()
+		log.logstop('ldf')
+		base.disconnect()
 		t.end()
 
