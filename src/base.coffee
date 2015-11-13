@@ -34,7 +34,7 @@ module.exports  = class MongooseJsonldBase
 		@schemaPrefix or= "/schema"
 		@typeMap      = Merge(TypeMap, opts.typemap)
 		@validators   = Merge(Validators, opts.validators)
-		@expressJsonldMiddleware = new ExpressJSONLD(jsonldRapper: @jsonldRapper).getMiddleware()
+		@expressJsonldMiddleware = new ExpressJSONLD(@).getMiddleware()
 		@uriForClass or= (short) ->
 			return "#{@baseURI}#{@schemaPrefix}/#{short}"
 		@uriForInstance or= (doc) ->
