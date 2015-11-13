@@ -13,15 +13,15 @@ module.exports = class SchemaHandlers extends Base
 				app.get path, (req, res, next) =>
 					# req.jsonld = model.schema.options['@context']
 					req.jsonld = model.jsonldTBox()
-					# log.debug req.jsonld
 					if not req.headers.accept or req.headers.accept in ['*/*', 'application/json']
 						res.send JSON.stringify(req.jsonld, null, 2)
 					else
 						@expressJsonldMiddleware(req, res, next)
 				for propPath, propDef of model.schema.paths
 					continue if Utils.INTERNAL_FIELD_REGEX.test propPath
-					app.get "#{@schemaPrefix}/#{propPath}", (req, res, next) =>
-						do (propPath, propDef) =>
+					continue if Utils.JSONLD_FIELD_REGEX.test propPath
+					do (propPath, propDef) =>
+						app.get "#{@schemaPrefix}/#{propPath}", (req, res, next) =>
 							req.jsonld = propDef.options['@context']
 							if not req.headers.accept or req.headers.accept in ['*/*', 'application/json']
 								res.send JSON.stringify(req.jsonld, null, 2)

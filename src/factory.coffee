@@ -245,10 +245,10 @@ module.exports = class Factory extends Base
 			# schema:domainIncludes (rdfs:domain)
 			pc['schema:domainIncludes'] or= []
 			pc['schema:domainIncludes'].push {'@id': classUri}
-			propOpts = {
-				'@context': pc
-			}
-			delete propDef['@context']
+			# propOpts = {
+			#     '@context': pc
+			# }
+			# delete propDef['@context']
 			# XXX TODO
 			# handle dbrefs
 			#
@@ -258,7 +258,6 @@ module.exports = class Factory extends Base
 			else if 'refOne' of propDef
 				propDef.type = String
 				propDef.ref = propDef.refOne
-
 			schema.add("#{propName}": propDef)
 			schema.paths[propName].options or= {}
 			schema.paths[propName].options['@context'] = pc
@@ -276,5 +275,5 @@ module.exports = class Factory extends Base
 			log.error err
 		model.on 'index', (err) ->
 			return log.error err if err
-			return log.info 'Index built successfully'
+			return log.info "Index for '#{name}' built successfully"
 		return model
