@@ -1,5 +1,7 @@
 language: node_js
 dist: trusty
+services:
+  - mongodb
 node_js:
   "0.12"
 before_install:
