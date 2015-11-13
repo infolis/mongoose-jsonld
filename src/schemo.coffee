@@ -58,7 +58,9 @@ module.exports = class Schemo extends Base
 
 	addClass: (className, classDef) ->
 		@schemas[className] = schema = @factory.createSchema(className, classDef, {strict: true})
-		@models[className] = model = @mongoose.model(className, schema)
+		@models[className] = model = @factory.createModel(className, schema)
+		model.ensureIndexes (err) ->
+			return log.error err if err
 		@onto.classes[className] = model.jsonldTBox()
 
 	jsonldTBox : (opts, cb) ->

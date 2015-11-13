@@ -259,9 +259,22 @@ module.exports = class Factory extends Base
 				propDef.type = String
 				propDef.ref = propDef.refOne
 
-			# XXX Index
-			# propDef.index = true
 			schema.add("#{propName}": propDef)
 			schema.paths[propName].options or= {}
 			schema.paths[propName].options['@context'] = pc
 		return schema
+	
+	createModel: (name, schema) ->
+		model = @mongoose.model(name, schema)
+		# Create indexes
+		schema.options.emitIndexErrors = true
+		indexProp = {}
+		indexProp[k] = 1 for k in model.properFields()
+		schema.index(indexProp)
+		# Log errors
+		model.on 'error', (err) ->
+			log.error err
+		model.on 'index', (err) ->
+			return log.error err if err
+			return log.info 'Index built successfully'
+		return model
