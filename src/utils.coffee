@@ -1,5 +1,6 @@
-N3Util    = require('n3').Util
-{inspect} = require 'util'
+N3Util   = require('n3').Util
+Inspect  = require('util').inspect
+IsNumber = require('is-number')
 
 module.exports = class Utils
 
@@ -42,6 +43,16 @@ module.exports = class Utils
 		b = N3Util.getLiteralValue() if N3Util.isLiteral(b)
 		return a is b
 
+	@literalValue: (str) ->
+		if N3Util.isLiteral(str)
+			return N3Util.getLiteralValue(str)
+
+	@isNumber: (str) ->
+		return IsNumber(str)
+
+	@isDate: (str) ->
+		return /^\d\d\d\d-/.test str
+
 	@withoutContext : (def) ->
 		out = {}
 		for k, v of def
@@ -73,7 +84,7 @@ module.exports = class Utils
 		console.log @dump obj
 
 	@dump: (obj) ->
-		inspect obj, {
+		Inspect obj, {
 			depth: 8
 			showHidden: false
 			colors: true
