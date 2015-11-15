@@ -1,38 +1,111 @@
-Async = require 'async'
-Utils = require '../utils'
-Base  = require '../base'
+Async   = require 'async'
+Accepts = require 'accepts'
+Utils   = require '../utils'
+Base    = require '../base'
 
 log = require('../log')(module)
 
+HYDRA = "http://www.w3.org/ns/hydra/core#"
+VOID = "http://rdfs.org/ns/void#"
+RDF = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+
 module.exports = class LdfHandlers extends Base
 
+	ldfEndpoint: -> "#{@apiPrefix}/ldf"
+
 	inject: (app, nextMiddleware) ->
-		app.get "/#{@apiPrefix}/ldf", (req, res) ->
-			# TODO
-			res.end()
+		app.get @ldfEndpoint(), (req, res, next) =>
+			ldfQuery = req.query
+			ldfQuery.limit     = parseInt(req.query.limit) or 100
+			ldfQuery.offset    = parseInt(req.query.offset) or 0
+			ldfQuery.subject   = req.query.subject if req.query.subject
+			ldfQuery.predicate = req.query.predicate if req.query.predicate
+			ldfQuery.object    = req.query.object if req.query.object
+			log.debug "Handling LDF query", ldfQuery
+			tripleStream = []
+			@handleLinkedDataFragmentsQuery ldfQuery, tripleStream, (err) =>
+				@_hydraControls ldfQuery, tripleStream, (err) =>
+					acceptable = Accepts(req).types()
+					if acceptable.length == 0 or 'application/n3+json' in acceptable
+						res.send tripleStream
+					else
+						@jsonldRapper.convert tripleStream, 'json3', acceptable[0], (err, converted) ->
+							return res.send err if err
+							return res.send converted
+
+	_next : (_ldfQuery) ->
+		ldfQuery = {}
+		ldfQuery[k] = v for k,v of _ldfQuery
+		ldfQuery.offset += ldfQuery.limit
+		return @_canonical ldfQuery
+
+	_previous : (_ldfQuery) ->
+		return null if _ldfQuery.offset == 0
+		ldfQuery = {}
+		ldfQuery[k] = v for k,v of _ldfQuery
+		ldfQuery.offset -= ldfQuery.limit
+		ldfQuery.offset = Math.max 0, ldfQuery.offset
+		return @_canonical ldfQuery
+
+	_canonical : (ldfQuery) ->
+		ret = @baseURI + @ldfEndpoint()
+		qs = []
+		qs.push "#{k}=#{encodeURIComponent v}" for k,v of ldfQuery
+		return "#{ret}?#{qs.join '&'}"
+
+	# From http://www.hydra-cg.com/spec/latest/triple-pattern-fragments/#controls
+	# <http://example.org/example#dataset>
+	# void:subset <http://example.org/example?s=http%3A%2F%2Fexample.org%2Ftopic>;
+	# hydra:search [
+	#   hydra:template "http://example.org/example{?s,p,o}";
+	#   hydra:mapping  [ hydra:variable "s"; hydra:property rdf:subject ],
+	#                  [ hydra:variable "p"; hydra:property rdf:predicate ],
+	#                  [ hydra:variable "o"; hydra:property rdf:object ]
+	# ].
+	_hydraControls : (ldfQuery, tripleStream, cb) ->
+		controls =
+			'@context':
+				hydra: HYDRA
+				void: VOID
+				rdf: RDF
+			'@id': "http://infolis.gesis.org/infolink"
+			'void:subset': @_canonical(ldfQuery)
+			'hydra:search':
+				'hydra:template': 'http://infolis.gesis.org/infolink/api/lds{?subject,predicate,object}'
+				'hydra:mapping': [
+					{
+						'hydra:variable': 'subject'
+						'hydra:property': RDF + 'subject'
+					},{
+						'hydra:variable': 'predicate'
+						'hydra:property': RDF + 'predicate'
+					},{
+						'hydra:variable': 'object'
+						'hydra:property': RDF + 'object'
+					}
+				]
+		next = @_next(ldfQuery)
+		controls['hydra:next'] = next if next 
+		previous = @_previous(ldfQuery)
+		controls['hydra:previous'] = previous if previous
+		log.debug 'Hypermedia controls', controls
+		return @jsonldRapper.convert controls, 'jsonld', 'json3', (err, json3) ->
+			if err
+				log.error err 
+				cb err
+			tripleStream.push triple for triple in json3
+			cb()
 
 	###
-	#
-	# if !(subject | predicate | object)
-	# else if (subject)
-	# if 'subject' and not 'predicate' and not 'object'
-	# 	doc.jsonldABox -> content-negotiate
-	# if 
-	#
-	# 	for model in @models
-	# 		for doc in model.find query
-	# 			jsonldABox to json3
 	# @param ldf {object} the triple pattern (subject, predicate, object), offset and limit
 	# @param tripleStream {stream} the trieple stream
 	# @param doneLDF called when finished
 	###
 	handleLinkedDataFragmentsQuery: (ldf, tripleStream, doneLDF) ->
 		jsonldABoxOpts = {from: 'jsonld', to: 'json3'}
-
 		ldf.offset or= 0
 		ldf.limit  or= 10
-
-		currentTriple = 0
+		currentTriple = ldf.offset
 		log.start('handle-ldf')
 		Async.forEachOfSeries @models, (model, modelName, doneModel) =>
 			mongoQuery = @_buildMongoQuery(ldf, model)
@@ -42,7 +115,7 @@ module.exports = class LdfHandlers extends Base
 				return doneModel err if err
 				Async.eachLimit docs, 20, (doc, doneDocs) =>
 					doc.jsonldABox jsonldABoxOpts, (err, triples) =>
-						Async.each triples, (triple, doneField) =>
+						Async.eachSeries triples, (triple, doneField) =>
 							# if ldf.predicate and Utils.lastUriSegment(triple.predicate) is 'type'
 							if ldf.object and not Utils.literalValueMatch(triple.object, ldf.object)
 								return doneField()
