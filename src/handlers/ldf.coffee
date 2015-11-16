@@ -68,7 +68,7 @@ module.exports = class LdfHandlers extends Base
 				hydra: HYDRA
 				void: VOID
 				rdf: RDF
-			'@id': "http://infolis.gesis.org/infolink"
+			'@id': @baseURI
 			'void:subset': @_canonical(ldfQuery)
 			'hydra:search':
 				'hydra:template': 'http://infolis.gesis.org/infolink/api/lds{?subject,predicate,object}'
@@ -88,7 +88,7 @@ module.exports = class LdfHandlers extends Base
 		controls['hydra:next'] = next if next 
 		previous = @_previous(ldfQuery)
 		controls['hydra:previous'] = previous if previous
-		log.debug 'Hypermedia controls', controls
+		log.silly 'Hypermedia controls', controls
 		return @jsonldRapper.convert controls, 'jsonld', 'json3', (err, json3) ->
 			if err
 				log.error err 
