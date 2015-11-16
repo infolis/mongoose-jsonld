@@ -37,13 +37,19 @@ module.exports = class Utils
 		return Utils.lastUriSegment(a) is Utils.lastUriSegment(b)
 
 	@literalValueMatch : (a, b) ->
-		if a is b
-			return true
-		a = N3Util.getLiteralValue() if N3Util.isLiteral(a)
-		b = N3Util.getLiteralValue() if N3Util.isLiteral(b)
+		if (typeof a is 'undefined') or (typeof b is 'undefined')
+			return false
+		if typeof a is 'object' or typeof b is 'object'
+			return false
+		a = @literalValue a
+		b = @literalValue b
+		return false if not (a and b)
 		return a is b
 
 	@literalValue: (str) ->
+		return if typeof str is 'undefined'
+		if str[0] isnt '"'
+			return str
 		if N3Util.isLiteral(str)
 			return N3Util.getLiteralValue(str)
 
