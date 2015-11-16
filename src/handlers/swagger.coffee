@@ -193,6 +193,8 @@ module.exports = class Swagger extends Base
 				continue
 			# if model.modelName == 'InfolisFile'
 				# log.debug v
+			if v.options.hideFromSwagger
+				continue
 			if v.isRequired
 				definition.required.push k
 			propDef = {}
