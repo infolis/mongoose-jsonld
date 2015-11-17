@@ -1,6 +1,4 @@
 # mongoose-jsonld
 Add JSON-LD context to a Mongoose schema 
 
-!https://travis-ci.org/infolis/mongoose-jsonld.svg!:https://travis-ci.org/infolis/mongoose-jsonld
-
-
+[![Build Status](https://travis-ci.org/infolis/mongoose-jsonld.svg?branch=master)](https://travis-ci.org/infolis/mongoose-jsonld)

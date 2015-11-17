@@ -23,7 +23,7 @@ module.exports = class LdfHandlers extends Base
 			ldfQuery.object    = req.query.object if req.query.object
 			log.debug "Handling LDF query", ldfQuery
 			tripleStream = []
-			@handleLinkedDataFragmentsQuery ldfQuery, tripleStream, (err) =>
+			@handleLDFQuery ldfQuery, tripleStream, (err) =>
 				@_hydraControls ldfQuery, tripleStream, (err) =>
 					acceptable = Accepts(req).types()
 					if acceptable.length == 0 or 'application/n3+json' in acceptable
@@ -53,7 +53,9 @@ module.exports = class LdfHandlers extends Base
 		qs.push "#{k}=#{encodeURIComponent v}" for k,v of ldfQuery
 		return "#{ret}?#{qs.join '&'}"
 
+	###
 	# From http://www.hydra-cg.com/spec/latest/triple-pattern-fragments/#controls
+	#
 	# <http://example.org/example#dataset>
 	# void:subset <http://example.org/example?s=http%3A%2F%2Fexample.org%2Ftopic>;
 	# hydra:search [
@@ -62,6 +64,7 @@ module.exports = class LdfHandlers extends Base
 	#                  [ hydra:variable "p"; hydra:property rdf:predicate ],
 	#                  [ hydra:variable "o"; hydra:property rdf:object ]
 	# ].
+	###
 	_hydraControls : (ldfQuery, tripleStream, cb) ->
 		controls =
 			'@context':
@@ -101,7 +104,7 @@ module.exports = class LdfHandlers extends Base
 	# @param tripleStream {stream} the trieple stream
 	# @param doneLDF called when finished
 	###
-	handleLinkedDataFragmentsQuery: (ldf, tripleStream, doneLDF) ->
+	handleLDFQuery: (ldf, tripleStream, doneLDF) ->
 		jsonldABoxOpts = {from: 'jsonld', to: 'json3'}
 		ldf.offset or= 0
 		ldf.limit  or= 10
