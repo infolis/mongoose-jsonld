@@ -29,9 +29,9 @@ module.exports = class LdfHandlers extends Base
 					if acceptable.length == 0 or 'application/n3+json' in acceptable
 						res.send tripleStream
 					else
-						@jsonldRapper.convert tripleStream, 'json3', acceptable[0], (err, converted) ->
-							return res.send err if err
-							return res.send converted
+						@jsonldRapper.convert tripleStream, 'json3', 'jsonld', (err, converted) =>
+							req.jsonld = converted
+							@expressJsonldMiddleware(req, res, next)
 
 	_next : (_ldfQuery) ->
 		ldfQuery = {}
@@ -48,7 +48,7 @@ module.exports = class LdfHandlers extends Base
 		return @_canonical ldfQuery
 
 	_canonical : (ldfQuery) ->
-		ret = @baseURI + @ldfEndpoint()
+		ret = "#{@baseURI}/#{@ldfEndpoint()}"
 		qs = []
 		qs.push "#{k}=#{encodeURIComponent v}" for k,v of ldfQuery
 		return "#{ret}?#{qs.join '&'}"
@@ -72,25 +72,25 @@ module.exports = class LdfHandlers extends Base
 				void: VOID
 				rdf: RDF
 			'@id': @baseURI
-			'void:subset': @_canonical(ldfQuery)
+			'void:subset': '@id': @_canonical(ldfQuery)
 			'hydra:search':
-				'hydra:template': 'http://infolis.gesis.org/infolink/api/lds{?subject,predicate,object}'
+				'hydra:template': "#{@baseURI}/#{@apiPrefix}/lds{?subject,predicate,object}"
 				'hydra:mapping': [
 					{
 						'hydra:variable': 'subject'
-						'hydra:property': RDF + 'subject'
+						'hydra:property': '@id': RDF + 'subject'
 					},{
 						'hydra:variable': 'predicate'
-						'hydra:property': RDF + 'predicate'
+						'hydra:property': '@id': RDF + 'predicate'
 					},{
 						'hydra:variable': 'object'
-						'hydra:property': RDF + 'object'
+						'hydra:property': '@id': RDF + 'object'
 					}
 				]
 		next = @_next(ldfQuery)
-		controls['hydra:next'] = next if next 
+		controls['hydra:next'] = {'@id':next} if next 
 		previous = @_previous(ldfQuery)
-		controls['hydra:previous'] = previous if previous
+		controls['hydra:previous'] = {'@id':previous} if previous
 		log.silly 'Hypermedia controls', controls
 		return @jsonldRapper.convert controls, 'jsonld', 'json3', (err, json3) ->
 			if err
