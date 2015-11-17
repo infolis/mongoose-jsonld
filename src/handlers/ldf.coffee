@@ -31,6 +31,8 @@ module.exports = class LdfHandlers extends Base
 					else
 						@jsonldRapper.convert tripleStream, 'json3', 'jsonld', (err, converted) =>
 							req.jsonld = converted
+							res.locals.is_ldf = true
+							res.locals[k] = v for k,v of ldfQuery
 							@expressJsonldMiddleware(req, res, next)
 
 	_next : (_ldfQuery) ->
