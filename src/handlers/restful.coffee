@@ -42,8 +42,8 @@ module.exports = class RestfulHandler extends Base
 						)
 
 	_GET_Resource : (model, req, res, next) ->
-		log.debug "GET #{model.modelName}##{req.params.id}"
 		id = @_castId(model, res, req.params.id)
+		log.debug "GET #{model.modelName}##{id}"
 		if not id
 			res.status 404
 			return next()
