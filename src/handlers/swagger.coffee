@@ -18,7 +18,6 @@ module.exports = class Swagger extends Base
 			res.header 'Content-Type', 'application/swagger+json'
 			res.send JSON.stringify @getSwagger(swaggerDef)
 
-
 	getSwagger: (swaggerDef) ->
 		swaggerDef.swagger      or= '2.0'
 		swaggerDef.basePath     or= '/'
@@ -66,7 +65,7 @@ module.exports = class Swagger extends Base
 	getSwaggerPath: (model) ->
 		modelName = model.modelName
 		modelNameLC = Utils.lcfirst model.modelName
-		tags = ["rest-ld-all", "rest-ld-#{modelNameLC}"]
+		tags = ["rest-ld-#{modelNameLC}"]
 
 		ret = {}
 		pathCollection = "#{@apiPrefix}/#{modelNameLC}"
@@ -80,6 +79,8 @@ module.exports = class Swagger extends Base
 		ret[pathCollection].get =
 			tags: tags
 			summary: "Get every [#{modelName}](#{@schemaPrefix}/#{modelName})",
+			description: "Get every [#{modelName}](#{@schemaPrefix}/#{modelName})",
+			description: "Get every [#{modelName}](#{@schemaPrefix}/#{modelName})",
 			parameters: [
 				name: 'q'
 				in: "query"
@@ -98,6 +99,7 @@ module.exports = class Swagger extends Base
 		ret[pathItem].get =
 			tags: tags
 			summary: "Return #{modelName} with _id {id}",
+			description: "Return #{modelName} with _id {id}",
 			parameters: [
 				in: "path"
 				name: "id"
@@ -117,6 +119,7 @@ module.exports = class Swagger extends Base
 		ret[pathCollection].post =
 			tags: tags
 			summary: "Post a new #{modelName}",
+			description: "Post a new #{modelName}",
 			parameters: [
 					name: modelNameLC
 					in: "body"
@@ -134,6 +137,7 @@ module.exports = class Swagger extends Base
 		ret[pathItem].put =
 			tags: tags
 			summary: "Replace #{modelName} with new #{modelName}",
+			description: "Replace #{modelName} with new #{modelName}",
 			parameters: [
 				in: "path"
 				name: "id"
@@ -153,6 +157,7 @@ module.exports = class Swagger extends Base
 		ret[pathItem].delete =
 			tags: tags
 			summary: "Delete #{modelName} with _id {id}",
+			description: "Delete #{modelName} with _id {id}",
 			parameters: [
 				in: "path"
 				name: "id"
@@ -169,6 +174,7 @@ module.exports = class Swagger extends Base
 		ret[pathCollectionDelete].delete =
 			tags: tags
 			summary: "Delete all #{modelName}",
+			description: "Delete all #{modelName}",
 			responses:
 				200:
 					description: "Annihilated all #{modelName}"
