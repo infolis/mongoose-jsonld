@@ -73,10 +73,10 @@ module.exports = class LdfHandlers extends Base
 				hydra: HYDRA
 				void: VOID
 				rdf: RDF
-			'@id': @baseURI
+			'@id': "#{@baseURI}#{@apiPrefix}/ldf"
 			'void:subset': '@id': @_canonical(ldfQuery)
 			'hydra:search':
-				'hydra:template': "#{@baseURI}/#{@apiPrefix}/lds{?subject,predicate,object}"
+				'hydra:template': "#{@baseURI}#{@apiPrefix}/lds{?subject,predicate,object}"
 				'hydra:mapping': [
 					{
 						'hydra:variable': 'subject'
