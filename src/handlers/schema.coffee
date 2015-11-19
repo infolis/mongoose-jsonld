@@ -16,7 +16,7 @@ module.exports = class SchemaHandlers extends Base
 						path =  "#{@schemaPrefix}/#{name}"
 						if name of @onto.classes
 							def = @onto.classes[name]
-						log.debug "Binding schema handler #{path}", def
+						log.debug "Binding schema handler #{path}"
 						app.get path, (req, res, next) =>
 							req.jsonld = def
 							if not req.headers.accept or req.headers.accept in ['*/*', 'application/json']
