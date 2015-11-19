@@ -6,7 +6,7 @@ log = require('../log')(module)
 
 module.exports = class SchemaHandlers extends Base
 
-	inject: (app, nextMiddleware) ->
+	inject: (app, done) ->
 		console.log @instanceNames
 		@jsonldTBox {to: 'jsonld', profile: JsonldRapper.JSONLD_PROFILE.FLATTENED}, (err, expand) =>
 			@serialize expand, {to: 'jsonld', profile: JsonldRapper.JSONLD_PROFILE.EXPANDED}, (err, flat) =>
@@ -23,3 +23,4 @@ module.exports = class SchemaHandlers extends Base
 								res.send JSON.stringify(req.jsonld, null, 2)
 							else
 								@expressJsonldMiddleware(req, res, next)
+		done()

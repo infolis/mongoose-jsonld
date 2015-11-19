@@ -13,7 +13,7 @@ module.exports = class LdfHandlers extends Base
 
 	ldfEndpoint: -> "#{@apiPrefix}/ldf"
 
-	inject: (app, nextMiddleware) ->
+	inject: (app, done) ->
 		app.get @ldfEndpoint(), (req, res, next) =>
 			ldfQuery = req.query
 			ldfQuery.limit     = parseInt(req.query.limit) or 100
@@ -34,6 +34,7 @@ module.exports = class LdfHandlers extends Base
 							res.locals.is_ldf = true
 							res.locals[k] = v for k,v of ldfQuery
 							@expressJsonldMiddleware(req, res, next)
+		done()
 
 	_next : (_ldfQuery) ->
 		ldfQuery = {}

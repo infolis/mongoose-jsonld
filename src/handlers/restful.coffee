@@ -5,11 +5,8 @@ log = require('../log')(module)
 
 module.exports = class RestfulHandler extends Base
 
-	inject: (app, nextMiddleware) ->
-		if not app
-			throw Error("No app given")
-		if not nextMiddleware
-			nextMiddleware = @_conneg.bind(@)
+	inject: (app, done) ->
+		nextMiddleware = @_conneg.bind(@)
 		self = this
 		for modelName, model of @models
 			do (modelName, model) =>
@@ -34,12 +31,13 @@ module.exports = class RestfulHandler extends Base
 					do (methodAndPath, handle, nextMiddleware) =>
 						expressMethod = methodAndPath.substr(0, methodAndPath.indexOf(' ')).toLowerCase()
 						path = methodAndPath.substr(methodAndPath.indexOf(' ') + 1)
-						# log.debug "#{expressMethod} '#{path}'"
+						log.debug "#{expressMethod} '#{path}'"
 						app[expressMethod](
 							path
 							(req, res, next) -> handle.apply(self, [model, req, res, next])
 							(req, res, next) -> nextMiddleware(req, res, next)
 						)
+		done()
 
 	_GET_Resource : (model, req, res, next) ->
 		id = @_castId(model, res, req.params.id)

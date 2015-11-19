@@ -6,7 +6,7 @@ log = require('../log')(module)
 
 module.exports = class Swagger extends Base
 
-	inject: (app, swaggerDef, nextMiddleware) ->
+	inject: (app, swaggerDef, done) ->
 		swagger = "#{@apiPrefix}/swagger"
 		swagger = "/swagger"
 		log.debug "Swagger available at #{swagger}.yaml"
@@ -17,6 +17,7 @@ module.exports = class Swagger extends Base
 		app.get "#{swagger}.json", (req, res, next) =>
 			res.header 'Content-Type', 'application/swagger+json'
 			res.send JSON.stringify @getSwagger(swaggerDef)
+		done()
 
 	getSwagger: (swaggerDef) ->
 		swaggerDef.swagger      or= '2.0'
