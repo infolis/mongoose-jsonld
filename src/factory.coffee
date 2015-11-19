@@ -68,28 +68,28 @@ module.exports = class Factory extends Base
 		#         delete ret[path] unless path in predicates_to_keep
 		return ret
 
-	_createDocumentFromObject : (model, obj) ->
-		for schemaPathName of obj
-			schemaPathDef = model.schema.paths[schemaPathName]
-			schemaPathOptions = schemaPathDef.options
-			Utils.dumplog schemaPathOptions
-			if 'refOne' of schemaPathOptions
-				obj[schemaPathName] = Utils.lastUriSegment(obj[schemaPathName])
-			else if 'refMany' of schemaPathOptions
-				swap = []
-				for uri of obj[schemaPathName]
-					swap.push Utils.lastUriSegment uri
-				obj[schemaPathName] = swap
-		return new model(obj)
+	# _createDocumentFromObject : (model, obj) ->
+	#     for schemaPathName of obj
+	#         schemaPathDef = model.schema.paths[schemaPathName]
+	#         schemaPathOptions = schemaPathDef.options
+	#         Utils.dumplog schemaPathOptions
+	#         if 'refOne' of schemaPathOptions
+	#             obj[schemaPathName] = Utils.lastUriSegment(obj[schemaPathName])
+	#         else if 'refMany' of schemaPathOptions
+	#             swap = []
+	#             for uri of obj[schemaPathName]
+	#                 swap.push Utils.lastUriSegment uri
+	#             obj[schemaPathName] = swap
+	#     return new model(obj)
 
-	# XXXX TODO do this by hand
-	_findOneAndPopulate : (model, searchDoc, cb) ->
-		builder = model.findOne(searchDoc)
-		for schemaPathName, schemaPathDef of model.schema.paths
-			schemaPathType = schemaPathDef.options
-			if Utils.isJoinSingle(schemaPathType) or Utils.isJoinMulti(schemaPathType)
-				builder.populate(schemaPathName)
-		return builder.exec cb
+	# # XXXX TODO do this by hand
+	# _findOneAndPopulate : (model, searchDoc, cb) ->
+	#     builder = model.findOne(searchDoc)
+	#     for schemaPathName, schemaPathDef of model.schema.paths
+	#         schemaPathType = schemaPathDef.options
+	#         if Utils.isJoinSingle(schemaPathType) or Utils.isJoinMulti(schemaPathType)
+	#             builder.populate(schemaPathName)
+	#     return builder.exec cb
 
 	_listDescription: (model, opts) ->
 		onto = []
@@ -235,13 +235,31 @@ module.exports = class Factory extends Base
 					'owl:oneOf': enumValues
 					'@type': 'xsd:string'
 				}
+			# XXX TODO
+			# handle dbrefs
+			#
+			if 'refMany' of propDef
+				propDef.type = @typeMap.ArrayOfStrings
+				pc['rdfs:range'] = '@id': propDef.refMany
+				# propDef.ref = propDef.refMany
+			else if 'refOne' of propDef
+				propDef.type = @typeMap.String
+				pc['rdfs:range'] = '@id': propDef.refOne
+				# propDef.ref = propDef.refOne
 			if not pc['rdfs:range']
 				switch propDef.type
-					when String, 'String'
+					when @typeMap.String
 						pc['rdfs:range'] = {'@id': 'xsd:string'}
+					when @typeMap.Boolean
+						pc['rdfs:range'] = {'@id': 'xsd:boolean'}
+					when @typeMap.Number
+						pc['rdfs:range'] = {'@id': 'xsd:float'}
+					when @typeMap.ArrayOfStrings
+						pc['rdfs:range'] = {'@id': 'xsd:string'}
+					when @typeMap.Date
+						pc['rdfs:range'] = {'@id': 'xsd:dateTime'}
 					else
-						# XXX do nothing
-						null
+						log.error "Unknown primitive type: #{propDef.type}"
 			# schema:domainIncludes (rdfs:domain)
 			pc['schema:domainIncludes'] or= []
 			pc['schema:domainIncludes'].push {'@id': classUri}
@@ -249,15 +267,6 @@ module.exports = class Factory extends Base
 			#     '@context': pc
 			# }
 			# delete propDef['@context']
-			# XXX TODO
-			# handle dbrefs
-			#
-			if 'refMany' of propDef
-				propDef.type = String
-				propDef.ref = propDef.refMany
-			else if 'refOne' of propDef
-				propDef.type = String
-				propDef.ref = propDef.refOne
 			schema.add("#{propName}": propDef)
 			schema.paths[propName].options or= {}
 			schema.paths[propName].options['@context'] = pc

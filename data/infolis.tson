@@ -22,8 +22,8 @@
 	@id: infolis:
 	dc:description "Infolis Data model"
 	dc:version
-		@value "2015-03-15"
-		@type xsd:int
+		@value "2015-11-20T00:18:23Z"
+		@type xsd:dateTime
 
 Execution
 	@context
@@ -55,7 +55,10 @@ Execution
 		]
 	status
 		@context
-			dc:description "Status of the execution (PENDING, STARTED, FINISHED, FAILED).\n Default (when starting): ExecutionStatus.PENDING"
+			dc:description """
+				Status of the execution (PENDING, STARTED, FINISHED, FAILED).
+				Default (when starting): ExecutionStatus.PENDING
+				"""
 			dc:example 'SUCCESS'
 		required true
 		type String
@@ -98,12 +101,16 @@ Execution
 	#
 	inputFiles
 		@context
-			dc:description "List of URIs of input files. Can be either PDF or text files.\nThey are for example used to search patterns within the Pattern Applier algorithm."
-		type: ArrayOfStrings
+			dc:description """
+				List of URIs of input files.
+				Can be either PDF or text files.
+				They are for example used to search patterns within the Pattern Applier algorithm.
+				"""
+		refMany: infolis:InfolisFile
 	outputFiles
 		@context
 			dc:description "List of URIs of output files. Output files to save the output files (txt files) of algorithms."
-		type: ArrayOfStrings
+		refMany: infolis:InfolisFile
 	removeBib
 		@context
 			dc:description "Whether to remove the bibliography from text/plain document."
@@ -135,25 +142,30 @@ Execution
 		type: Number
 	searchTerm
 		@context
-			dc:description "A search term that can be used in different algorithms whenever something a certain term needs to be searched in a text.\n For example, the bootstrapping algorithms need a seed in the beginning to start the whole process. The search term represents such a seed, e.g. the study name 'ALLBUS'."
+			dc:description """
+				A search term that can be used in different algorithms whenever
+				something a certain term needs to be searched in a text.
+				For example, the bootstrapping algorithms need a seed in the beginning to start
+				the whole process. The search term represents such a seed, e.g. the study name 'ALLBUS'.
+				"""
 		index: true
 		type String
 	searchQuery
 		@context
 			dc:description "TODO"
-		type String
+		refOne infolis:SearchQuery
 	textualReferences
 		@context
 			dc:description "References found"
-		type ArrayOfStrings
+		refMany infolis:TextualReference
 	matchingFiles
 		@context
 			dc:description "Matching files"
-		type ArrayOfStrings
+		refMany infolis:InfolisFile
 	patterns
 		@context
 			dc:description "Generated patterns"
-		type ArrayOfStrings
+		refMany infolis:InfolisFile
 	seeds
 		@context
 			dc:description "The initial seeds for learning."
@@ -171,15 +183,15 @@ Execution
 	links
 		@context
 			dc:description "The found EntityLinks."
-		type ArrayOfStrings
+		refMany infolis:EntityLink
 	queryServices
 		@context
 			dc:description "List of QueryService to use"
-		type ArrayOfStrings
+		refMany infolis:QueryService
 	searchResults
 		@context
 			dc:description "Search results"
-		type ArrayOfStrings
+		refMany infolis:SearchResult
 
 SearchQuery
 	@context
@@ -212,11 +224,11 @@ Entity
 	textualReferences
 		@context
 			dc:description "TODO"
-		type ArrayOfStrings
+		refMany infolis:TextualReference
 	infolisFile
 		@context
 			dc:description "The InfolisFile that manifests this entity"
-		type String
+		refOne infolis:InfolisFile
 
 SearchResult
 	@context
@@ -241,7 +253,7 @@ SearchResult
 	textualReferences
 		@context
 			dc:description "TODO"
-		type ArrayOfStrings
+		refMany TextualReference
 	listIndex
 		@context
 			dc:description "Position in the list of search results"
@@ -377,6 +389,8 @@ QueryService
 	target
 		@context
 			dc:description "The target of this QueryService, in most cases a URI"
+			rdfs:range
+				@id xsd:anyURI
 		type: String
 		required: yes
 		index: true
@@ -408,4 +422,4 @@ TextualReference
 	file
 		@context
 			dc:description "The file this reference came from"
-		type: String
+		refOne: infolis:InfolisFile
