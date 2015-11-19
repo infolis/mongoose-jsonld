@@ -2,8 +2,8 @@
 # Schemo
 ###
 
-Fs      = require 'fs'
-TSON    = require 'tson'
+Fs           = require 'fs'
+TSON         = require 'tson'
 
 Factory = require './factory'
 Utils   = require './utils'
@@ -41,12 +41,6 @@ module.exports = class Schemo extends Base
 		@onto = { 
 			classes: {}
 		}
-		@handlers = {}
-		for m in ['schema', 'restful', 'swagger', 'ldf']
-			mod = require "./handlers/#{m}"
-			log.debug "Registering '#{m}' handler"
-			@handlers[m] = new mod(@)
-
 		#
 		# Build the schemas and models
 		#
@@ -57,22 +51,31 @@ module.exports = class Schemo extends Base
 				@addClass className, classDef
 
 		@checkForConflicts()
+		@handlers = {}
+		for m in ['schema', 'restful', 'swagger', 'ldf']
+			mod = require "./handlers/#{m}"
+			log.debug "Registering '#{m}' handler"
+			@handlers[m] = new mod(@)
+
 
 	#
 	# Sanity check that there are no conflicting names
 	#
 	checkForConflicts: ->
-		_knownNames = {}
+		@instanceNames = {}
+		_lcInstanceNames = {}
 		for modelName,model of @models
+			@instanceNames[modelName] = true
 			k = modelName.toLowerCase()
-			_knownNames[k] or= []
-			_knownNames[k].push modelName
+			_lcInstanceNames[k] or= []
+			_lcInstanceNames[k].push modelName
 			for field in model.properFields()
+				@instanceNames[field] = true
 				k = field.toLowerCase()
-				_knownNames[k] or= []
-				_knownNames[k].push "#{modelName}.#{field}"
+				_lcInstanceNames[k] or= []
+				_lcInstanceNames[k].push "#{modelName}.#{field}"
 		conflicts = {}
-		for name,instances of _knownNames
+		for name,instances of _lcInstanceNames
 			if instances.length > 1
 				conflicts[name] = instances
 		log.error("Multiple classes/properties with very similar name:\n#{Utils.dump(conflicts)}")
