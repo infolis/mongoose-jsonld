@@ -34,8 +34,7 @@ module.exports = class Factory extends Base
 			# skip internal fields
 			continue if Utils.INTERNAL_FIELD_REGEX.test schemaPathName
 			if not schemaPathDef
-				#XXX TODO
-				log.error "Error: #{schemaPathName} FIXME"
+				log.error "Field not in schema: #{doc.constructor.modelName}##{doc._id} #{schemaPathName}"
 				continue
 			# Add property data to the context
 			propContext = schemaPathDef.options?['@context']
