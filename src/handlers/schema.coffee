@@ -1,4 +1,5 @@
 Utils = require '../utils'
+JsonldRapper = require 'jsonld-rapper'
 Base = require '../base'
 
 log = require('../log')(module)
@@ -6,23 +7,16 @@ log = require('../log')(module)
 module.exports = class SchemaHandlers extends Base
 
 	inject: (app, nextMiddleware) ->
-		for modelName, model of @models
-			do (model) =>
-				path = "#{@schemaPrefix}/#{model.modelName}"
-				log.debug "Binding schema handler #{path}"
-				app.get path, (req, res, next) =>
-					# req.jsonld = model.schema.options['@context']
-					req.jsonld = model.jsonldTBox()
-					if not req.headers.accept or req.headers.accept in ['*/*', 'application/json']
-						res.send JSON.stringify(req.jsonld, null, 2)
-					else
-						@expressJsonldMiddleware(req, res, next)
-				for propPath, propDef of model.schema.paths
-					continue if Utils.INTERNAL_FIELD_REGEX.test propPath
-					continue if Utils.JSONLD_FIELD_REGEX.test propPath
-					do (propPath, propDef) =>
-						app.get "#{@schemaPrefix}/#{propPath}", (req, res, next) =>
-							req.jsonld = propDef.options['@context']
+		console.log @instanceNames
+		@jsonldTBox {to: 'jsonld', profile: JsonldRapper.JSONLD_PROFILE.FLATTENED}, (err, expand) =>
+			@serialize expand, {to: 'jsonld', profile: JsonldRapper.JSONLD_PROFILE.EXPANDED}, (err, flat) =>
+				for def in flat
+					do (def) =>
+						name = Utils.lastUriSegment(def['@id'])
+						path =  "#{@schemaPrefix}/#{name}"
+						log.debug "Binding schema handler #{path}"
+						app.get path, (req, res, next) =>
+							req.jsonld = def
 							if not req.headers.accept or req.headers.accept in ['*/*', 'application/json']
 								res.send JSON.stringify(req.jsonld, null, 2)
 							else
