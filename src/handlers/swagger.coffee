@@ -38,16 +38,14 @@ module.exports = class Swagger extends Base
 			'application/json'
 			'application/ld+json'
 			'text/turtle'
-			'text/n3'
-			'text/n-triples'
+			'application/n-triples'
 			'application/rdf+xml'
 		]
 		swaggerDef.produces or= [
 			'application/json'
 			'application/ld+json'
 			'text/turtle'
-			'text/n3'
-			'text/n-triples'
+			'application/n-triples'
 			'application/rdf+xml'
 		]
 
