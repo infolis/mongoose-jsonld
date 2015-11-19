@@ -71,7 +71,7 @@ module.exports = class RestfulHandler extends Base
 			if err
 				res.status 500
 				return next new Error(err)
-			res.status = 200
+			res.status 200
 			req.mongooseDoc = docs
 			next()
 
