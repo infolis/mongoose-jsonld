@@ -56,6 +56,28 @@ module.exports = class Schemo extends Base
 			else
 				@addClass className, classDef
 
+		@checkForConflicts()
+
+	#
+	# Sanity check that there are no conflicting names
+	#
+	checkForConflicts: ->
+		_knownNames = {}
+		for modelName,model of @models
+			k = modelName.toLowerCase()
+			_knownNames[k] or= []
+			_knownNames[k].push modelName
+			for field in model.properFields()
+				k = field.toLowerCase()
+				_knownNames[k] or= []
+				_knownNames[k].push "#{modelName}.#{field}"
+		conflicts = {}
+		for name,instances of _knownNames
+			if instances.length > 1
+				conflicts[name] = instances
+		log.error("Multiple classes/properties with very similar name:\n#{Utils.dump(conflicts)}")
+
+
 	addClass: (className, classDef) ->
 		@schemas[className] = schema = @factory.createSchema(className, classDef, {strict: true})
 		@models[className] = model = @factory.createModel(className, schema)
