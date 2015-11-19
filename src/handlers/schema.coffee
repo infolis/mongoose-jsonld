@@ -14,7 +14,9 @@ module.exports = class SchemaHandlers extends Base
 					do (def) =>
 						name = Utils.lastUriSegment(def['@id'])
 						path =  "#{@schemaPrefix}/#{name}"
-						log.debug "Binding schema handler #{path}"
+						if name of @onto.classes
+							def = @onto.classes[name]
+						log.debug "Binding schema handler #{path}", def
 						app.get path, (req, res, next) =>
 							req.jsonld = def
 							if not req.headers.accept or req.headers.accept in ['*/*', 'application/json']
