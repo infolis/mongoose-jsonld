@@ -268,7 +268,10 @@ module.exports = class Factory extends Base
 		# Create indexes
 		schema.options.emitIndexErrors = true
 		indexProp = {}
-		indexProp[k] = 1 for k in model.properFields()
+		for k in model.properFields()
+			if schema.paths[k].options.index
+				log.debug "Indexing #{name}##{k}"
+				indexProp[k] = 1
 		schema.index(indexProp)
 		# Log errors
 		model.on 'error', (err) ->

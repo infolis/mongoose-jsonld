@@ -1,7 +1,6 @@
 # vim: ft=turtleson ts=2 sw=2 list :
 @ns
-	# infolis <http://www-test.bib.uni-mannheim.de/infolis/schema/>
-	# infolis <http://localhost:3000/schema/>
+	infolis <http://infolis.gesis.org/infolink/schema/>
 	dc      <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 	dc      <http://purl.org/dc/elements/1.1/>
 	owl     <http://www.w3.org/2002/07/owl#>
@@ -16,7 +15,7 @@
 	dqm     <http://purl.org/dqm-vocabulary/v1/dqm#>
 	uri4uri <http://uri4uri.net/vocab#>
 	dm2e    <http://onto.dm2e.eu/schema/dm2e/>
-	omnom   <http://onto.dm2e.eu/schema/omnom/>
+	omnom   <http://onto.dm2e.eu/omnom/>
 	dcat    <http://www.w3.org/ns/dcat#>
 
 @context
@@ -25,8 +24,6 @@
 	dc:version
 		@value "2015-03-15"
 		@type xsd:int
-	rdfs:seeAlso
-		@type @id
 
 Execution
 	@context
@@ -37,52 +34,81 @@ Execution
 			@id: 'infolis:Algorithm'
 	algorithm
 		@context
-			dc:description "Java Class of this algorithm"
+			dc:description "Java class of the algorthim which is supposed to be executed within this execution."
 		required true
-		type String
-	log
-		@context
-			dc:description "Log messages"
-		type: []
+		index: true
+		type: String
+		enum: [
+			'io.github.infolis.algorithm.TextExtractor'
+			'io.github.infolis.algorithm.FrequencyBasedBootstrapping'
+			'io.github.infolis.algorithm.ReliabilityBasedBootstrapping'
+			'io.github.infolis.algorithm.DaraLinker'
+			'io.github.infolis.algorithm.ApplyPatternAndResolve'
+			'io.github.infolis.algorithm.FederatedSearcher'
+			'io.github.infolis.algorithm.Indexer'
+			'io.github.infolis.algorithm.Learner'
+			'io.github.infolis.algorithm.LocalResolver'
+			'io.github.infolis.algorithm.MetaDataExtractor'
+			'io.github.infolis.algorithm.PatternApplier'
+			'io.github.infolis.algorithm.SearchTermPosition'
+			'io.github.infolis.algorithm.VersionPatternApplier'
+		]
 	status
 		@context
-			dc:description "Status of this execution"
+			dc:description "Status of the execution (PENDING, STARTED, FINISHED, FAILED).\n Default (when starting): ExecutionStatus.PENDING"
 			dc:example 'SUCCESS'
 		required true
 		type String
+		index: true
 		enum: [
 			"PENDING"
 			"STARTED"
 			"FAILED"
 			"FINISHED"
 		]
+		hideFromSwagger: true
+	log
+		@context
+			dc:description "Log messages of this execution"
+		type: ArrayOfStrings
+		hideFromSwagger: true
 	startTime
 		@context
 			owl:sameAs schema:startTime
 			@type xsd:date
-			dc:description "Timestamp of the begin of this execution"
+			dc:description "Timestamp when execution started"
 		type Date
+		index: true
+		hideFromSwagger: true
 	endTime
 		@context
 			owl:sameAs schema:endTime
 			@type xsd:date
-			dc:description "Timestamp when the execution of this algorithm finished."
+			dc:description "Timestamp when execution ended"
 		type Date
+		index: true
+		hideFromSwagger: true
+	progress
+		@context
+			dc:description "Numerical progress of the execution in the interval 0-100"
+		type: Number
+		hideFromSwagger: true
 	#
 	# Parameters
 	#
 	inputFiles
 		@context
-			dc:description "List of URIs of input files"
+			dc:description "List of URIs of input files. Can be either PDF or text files.\nThey are for example used to search patterns within the Pattern Applier algorithm."
 		type: ArrayOfStrings
 	outputFiles
 		@context
-			dc:description "List of URIs of output files"
+			dc:description "List of URIs of output files. Output files to save the output files (txt files) of algorithms."
 		type: ArrayOfStrings
 	removeBib
 		@context
-			dc:description "Whether to remove the bibliography from a text document."
-		type String
+			dc:description "Whether to remove the bibliography from text/plain document."
+		type Boolean
+		index: true
 	outputDirectory
 		@context
 			dc:description "Output directory of the indexer."
@@ -90,18 +116,27 @@ Execution
 	phraseSlop
 		@context
 			dc:description "Phrase Slop for Lucene indexer."
+		index: true
 		type: Number
+	upperCaseConstraint
+		@context
+			dc:description "Upper Case Constraint"
+		index: true
+		type Boolean
 	allowLeadingWildcards
 		@context
 			dc:description "Whether leading wildcards are allowed"
+		index: true
 		type Boolean
 	maxClauseCount
 		@context
-			dc:description "TODO"
+			dc:description "Maximum Numb"
+		index: true
 		type: Number
 	searchTerm
 		@context
-			dc:description "TODO"
+			dc:description "A search term that can be used in different algorithms whenever something a certain term needs to be searched in a text.\n For example, the bootstrapping algorithms need a seed in the beginning to start the whole process. The search term represents such a seed, e.g. the study name 'ALLBUS'."
+		index: true
 		type String
 	searchQuery
 		@context
@@ -126,10 +161,12 @@ Execution
 	maxIterations
 		@context
 			dc:description "Maximum number of iterations."
+		index: true
 		type Number
 	reliabilityThreshold
 		@context
 			dc:description "TODO"
+		index: true
 		type Number
 	links
 		@context
@@ -152,22 +189,26 @@ SearchQuery
 			dc:description "The query string"
 		type String
 		required: yes
+		index: true
 
 Entity
 	@context
 		dc:description "An entity to be linked from or to, a Dataset or a Publication or a SearchResult"
 	name
 		@context
-			dc:description "TODO"
+			dc:description "Name of the entity"
 		type String
+		index: true
 	identifier
 		@context
 			dc:description "TODO"
 		type String
+		index: true
 	tags
 		@context
-			dc:description "TODO"
+			dc:description "Tags of this entity"
 		type ArrayOfStrings
+		index: true
 	textualReferences
 		@context
 			dc:description "TODO"
@@ -186,14 +227,17 @@ SearchResult
 		@context
 			dc:description "TODO"
 		type String
+		index: true
 	identifier
 		@context
 			dc:description "TODO"
 		type String
+		index: true
 	tags
 		@context
 			dc:description "TODO"
 		type ArrayOfStrings
+		index: true
 	textualReferences
 		@context
 			dc:description "TODO"
@@ -202,17 +246,20 @@ SearchResult
 		@context
 			dc:description "Position in the list of search results"
 		type Number
+		index: true
 	relevanceScore
 		@context
 			dc:description "Relevance score as calculated by the search engine"
 		type Number
+		index: true
 	date
 		@context
-			dc:description "TODO"
+			dc:description "Date of the search resul"
 		type String
+		index: true
 	queryService
 		@context
-			dc:description "TODO"
+			dc:description "Query Service used to retrieve search result."
 		type String
 	titles
 		@context
@@ -223,7 +270,7 @@ SearchResult
 			dc:description "TODO"
 		type ArrayOfStrings
 
-Pattern
+InfolisPattern
 	@context
 		dc:description 'A Regular Expression pattern'
 	patternRegex
@@ -234,6 +281,7 @@ Pattern
 		@context
 			dc:description "TODO"
 		type String
+		index: true
 	minimal
 		@context
 			dc:description "TODO"
@@ -246,11 +294,17 @@ Pattern
 		@context
 			dc:description "TODO"
 		type Number
+		index: true
 	reliability
 		@context
 			dc:description "TODO"
 		type Number
-
+		index: true
+	tags
+		@context
+			dc:description "Tags of this pattern"
+		type ArrayOfStrings
+		index: true
 
 InfolisFile
 	@context
@@ -265,6 +319,7 @@ InfolisFile
 		type String
 		validate 'MD5'
 		required: no
+		index: true
 	fileName
 		@context
 			@type @id
@@ -272,6 +327,7 @@ InfolisFile
 				@id omnom:fileName
 		type String
 		required: no
+		index: true
 	mediaType
 		@context
 			owl:sameAs dcat:mediaType
@@ -281,7 +337,8 @@ InfolisFile
 			"application/pdf"
 			"text/plain"
 		]
-		required: no
+		required: true
+		index: true
 	fileStatus
 		@context
 			@id omnom:fileStatus
@@ -291,6 +348,7 @@ InfolisFile
 			'DELETED'
 		]
 		required: no
+		index: true
 	tags
 		@context
 			owl:sameAs
@@ -298,12 +356,14 @@ InfolisFile
 			dc:description "A set of free form tags to attach to files"
 		type ArrayOfStrings
 		required: no
+		index: true
 	created
-		type Date
 		@context
 			owl:sameAs
 				@id: dc:created
 			dc:description "Timestamp when this File was uploaded"
+		type Date
+		index: true
 
 QueryService
 	@context
@@ -313,8 +373,39 @@ QueryService
 			dc:description "The reliablity of this QueryService"
 		type: Number
 		required: yes
+		index: true
 	target
 		@context
 			dc:description "The target of this QueryService, in most cases a URI"
 		type: String
 		required: yes
+		index: true
+
+TextualReference
+	@context
+		dc:description "Class for saving contexts (= surrounding words of a term)."
+	leftWords
+		@context
+			dc:description "Words left of the term"
+		type: ArrayOfStrings
+	rightWords
+		@context
+			dc:description "Words right of the term"
+		type: ArrayOfStrings
+	leftText
+		@context
+			dc:description 'Text left of the term'
+		type: String
+	rightText
+		@context
+			dc:description 'Text right of the term'
+		type: String
+	term
+		@context
+			dc:description "The term"
+		type: String
+		index: true
+	file
+		@context
+			dc:description "The file this reference came from"
+		type: String
