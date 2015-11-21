@@ -83,7 +83,7 @@ module.exports = class Swagger extends Base
 			parameters: [
 				name: 'q'
 				in: "query"
-				description: "k-v-pairs to filter for. 'key1:value1,key2:value2'"
+				description: "k-v-pairs to filter for: key1:value1,key2:value2, e.g. tags:test"
 				required: false
 				type: 'string'
 			]
