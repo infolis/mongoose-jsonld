@@ -62,8 +62,13 @@ module.exports = class RestfulHandler extends Base
 		if req.query.q
 			for kvPair in req.query.q.split(',')
 				[k,v] = kvPair.split(':')
-				searchDoc[k] = v
-			searchDoc[@_pathNameForPropertyUri model, k] = v
+				k = @_pathNameForPropertyUri model, k
+				if k of searchDoc 
+					if typeof k isnt 'object'
+						searchDoc[k] = $in : [searchDoc[k]]
+					searchDoc[k].$in.push v
+				else 
+					searchDoc[k] = v
 		log.debug "GET every #{model.modelName} with #{JSON.stringify searchDoc}"
 		model.find searchDoc, (err, docs) ->
 			if err
