@@ -3,10 +3,11 @@ CommonContexts = require 'jsonld-common-contexts'
 JsonldRapper   = require 'jsonld-rapper'
 ExpressJSONLD  = require 'express-jsonld'
 Merge          = require 'merge'
+EventEmitter = require('events').EventEmitter
 
-Validators     = require './validators'
-TypeMap        = require './typemap'
-Utils          = require './utils'
+Validators   = require './validators'
+TypeMap      = require './typemap'
+Utils        = require './utils'
 
 module.exports  = class MongooseJsonldBase
 
