@@ -26,22 +26,24 @@ module.exports = class LdfHandlers extends Base
 			ldfQuery.subject   = req.query.subject
 			ldfQuery.predicate = req.query.predicate
 			ldfQuery.object    = req.query.object
-			log.debug "Handling LDF query", ldfQuery
+			for pos in ['subject','predicate','object']
+				if ldfQuery[pos] is ''
+					delete ldfQuery[pos]
 			tripleStream = []
 
-			#TODO
-			res.end()
-			# @handleLDFQuery ldfQuery, tripleStream, (err) =>
-			#     @_hydraControls ldfQuery, tripleStream, (err) =>
-			#         acceptable = Accepts(req).types()
-			#         if acceptable.length == 0 or 'application/n3+json' in acceptable
-			#             res.send tripleStream
-			#         else
-			#             @jsonldRapper.convert tripleStream, 'json3', 'jsonld', (err, converted) =>
-			#                 req.jsonld = converted
-			#                 res.locals.is_ldf = true
-			#                 res.locals[k] = v for k,v of ldfQuery
-			#                 @expressJsonldMiddleware(req, res, next)
+			totalCount = 0
+			metadataCallback = (metadata) ->
+				totalCount += metadata.totalCount
+			@handleLDFQuery ldfQuery, tripleStream, metadataCallback, (err) =>
+				acceptable = Accepts(req).types()
+				if acceptable.length == 0 or 'application/n3+json' in acceptable
+					res.send tripleStream
+				else
+					@jsonldRapper.convert tripleStream, 'json3', 'jsonld', (err, converted) =>
+						req.jsonld = converted
+						res.locals.is_ldf = true
+						res.locals[k] = v for k,v of ldfQuery
+						@expressJsonldMiddleware(req, res, next)
 		done()
 
 	_next : (_ldfQuery) ->
@@ -59,7 +61,7 @@ module.exports = class LdfHandlers extends Base
 		return @_canonical ldfQuery
 
 	_canonical : (ldfQuery) ->
-		ret = "#{@baseURI}/#{@ldfEndpoint()}"
+		ret = "#{@baseURI}/#{@ldfEndpoint}"
 		qs = []
 		qs.push "#{k}=#{encodeURIComponent v}" for k,v of ldfQuery
 		return "#{ret}?#{qs.join '&'}"
@@ -122,14 +124,18 @@ module.exports = class LdfHandlers extends Base
 				count += 1
 			cb null, count
 
-	_tokenizeClassURI: (url, cb) ->
+	_uriToName: (url,cb) ->
 		if url.indexOf(@schemaBaseURI) isnt 0
 			return cb "Not in schemo: #{url}"
-		modelName = url.substring(@schemaBaseURI.length)
-		modelName = modelName.substring(0,1).toUpperCase() + modelName.substring(1)
-		if modelName not of @models
-			return cb "No such model: #{modelName}"
-		return cb null, @models[modelName]
+		return cb null, url.substring(@schemaBaseURI.length)
+
+	_tokenizeClassURI: (url, cb) ->
+		@_uriToName url, (err, modelName) ->
+			return cb err if err
+			modelName = modelName.substring(0,1).toUpperCase() + modelName.substring(1)
+			if modelName not of @models
+				return cb "No such model: #{modelName}"
+			return cb null, @models[modelName]
 
 	_tokenizeInstanceURI: (url, cb) ->
 		if url.indexOf(@apiBaseURI) isnt 0
@@ -172,27 +178,70 @@ module.exports = class LdfHandlers extends Base
 		ldf.offset or= 0
 		ldf.limit  or= 10
 		currentTriple = ldf.offset
-		if typeof ldf.subject isnt 'undefined'
-			handler = @_handleSubject
-		else if typeof ldf.predicate isnt 'undefined'
-			handler = @_handlePredicate
-		else if typeof ldf.object isnt 'undefined'
-			handler = _handleObject
+		if ldf.subject and ldf.subject isnt ''
+			handler = '_handleSubject'
+		else if ldf.predicate and ldf.predicate isnt ''
+			handler = '_handlePredicate'
+		else if ldf.object and ldf.object isnt ''
+			handler = '_handleObject'
 		else
-			handler = @_handleNone
-		return handler.call @, ldf, tripleStream, metadataCallback, (err, count) ->
+			handler = '_handleNone'
+		log.debug("LDF Query", ldf)
+		log.debug("Handling query with #{handler}")
+		return @[handler].call @, ldf, tripleStream, metadataCallback, (err, count) ->
 			doneLDF err, count
 
+	_handleNone : (ldf, tripleStream, metadataCallback, doneLDF) ->
+		totalCount = 0
+		asyncCallback = (metadata) -> totalCount += metadata.totalCount
+		queryDoc = {}
+		projection = {_id:true}
+		nrFound = 0
+		Async.eachSeries @models, (model, doneModel) =>
+			if nrFound > ldf.limit
+				return doneModel()
+			model.count (err, totalCount) =>
+				log.debug("Total count for #{model.modelName}", totalCount)
+				return doneModel err if err
+				metadataCallback {totalCount}
+				query = model.find(queryDoc, projection)
+				query.limit(ldf.limit)
+				query.exec (err, things) =>
+					return doneModel err if err
+					Async.each things, (thing, doneThing) =>
+						@_pushTriples thing.jsonldABox(), tripleStream, ldf, (err, totalCount) =>
+							nrFound += totalCount
+							doneThing()
+					, doneModel
+		, (err) ->
+			log.error err if err
+			return doneLDF err if err
+			metadataCallback {totalCount}
+			doneLDF()
+
 	_handleSubject : (ldf, tripleStream, metadataCallback, doneLDF) ->
+		if ldf.predicate is RDF_TYPE
+			return @_handlePredicateRdfType.apply(@, arguments)
 		@_tokenizeInstanceURI ldf.subject, (err, model, id) =>
-			return doneLDF() if err
-			query = model.where {_id:id}
-			query.findOne (err, thing) =>
-				return doneLDF() if err
-				@_pushTriples thing.jsonldABox(), tripleStream, ldf, (err, totalCount) ->
+			return doneLDF err if err
+			mongoQuery = {_id:id}
+			if ldf.predicate
+				@_uriToName ldf.predicate, (err, propName) =>
 					return doneLDF err if err
-					metadataCallback {totalCount}
-					doneLDF()
+					mongoQuery[propName] = {$exists:1}
+					return @_executeModelQuery ldf, model, mongoQuery, tripleStream, metadataCallback, doneLDF
+			else
+				return @_executeModelQuery ldf, model, mongoQuery, tripleStream, metadataCallback, doneLDF
+
+	_executeModelQuery : (ldf, model, mongoQuery, tripleStream, metadataCallback, doneLDF) ->
+		log.debug("Mongo queyr", mongoQuery)
+		query = model.where mongoQuery
+		query.findOne (err, thing) =>
+			return doneLDF err if err
+			@_pushTriples thing.jsonldABox(), tripleStream, ldf, (err, totalCount) ->
+				return doneLDF err if err
+				metadataCallback {totalCount}
+				doneLDF()
 
 	_handlePredicate : (ldf, tripleStream, metadataCallback, doneLDF) ->
 		self = this
@@ -201,7 +250,17 @@ module.exports = class LdfHandlers extends Base
 		# Async
 
 	_handlePredicateRdfType : (ldf, tripleStream, metadataCallback, doneLDF) ->
-		if ldf.object
+		if ldf.subject
+			@_tokenizeInstanceURI ldf.subject, (err, model, id) =>
+				return doneLDF err if err
+				tripleStream.push {
+					subject: ldf.subject
+					predicate: RDF_TYPE
+					object: @uriForClass(model.modelName)
+				}
+				metadataCallback {totalCount}
+				doneLDF()
+		else if ldf.object
 			@_tokenizeClassURI ldf.object, (err, model) =>
 				return doneLDF err if err
 				@_queryModelRdfType model, tripleStream, metadataCallback, (err, totalCount) ->
