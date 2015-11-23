@@ -138,12 +138,22 @@ module.exports = class Swagger extends Base
 			summary: "Replace #{modelName} with new #{modelName}",
 			description: "Replace #{modelName} with new #{modelName}",
 			parameters: [
-				in: "path"
-				name: "id"
-				description: "ID of the #{modelName} to replace"
-				required: true
-				type: 'string'
-				format: 'uuid'
+				{
+					in: "path"
+					name: "id"
+					description: "ID of the #{modelName} to replace"
+					required: true
+					type: 'string'
+					format: 'uuid'
+				}
+				{
+					name: modelNameLC
+					in: "body"
+					description: "Representation of the new #{model.modelName}"
+					required: true
+					schema:
+						$ref: "#/definitions/#{modelName}"
+				}
 			]
 			responses:
 				201:
