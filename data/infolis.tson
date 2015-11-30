@@ -139,12 +139,10 @@ Execution
 	upperCaseConstraint
 		@context
 			dc:description "Indicates whether we require a term to contain at least one upper case character."
-		index: true
 		type Boolean
 	allowLeadingWildcards
 		@context
 			dc:description "Whether leading wildcards are allowed."
-		index: true
 		type Boolean
 	maxClauseCount
 		@context
@@ -189,7 +187,6 @@ Execution
 	reliabilityThreshold
 		@context
 			dc:description "Determines which patterns are the relevant ones."
-		index: true
 		type Number
 	bootstrapStrategy
 		@context

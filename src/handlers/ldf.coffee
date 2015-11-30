@@ -46,25 +46,73 @@ module.exports = class LdfHandlers extends Base
 						@expressJsonldMiddleware(req, res, next)
 		done()
 
-	_next : (_ldfQuery) ->
-		ldfQuery = {}
-		ldfQuery[k] = v for k,v of _ldfQuery
-		ldfQuery.offset += ldfQuery.limit
-		return @_canonical ldfQuery
+	###
+	# 
+	# _handle_s
+	# S: Construct query [Mongo]
+	#   - _handle_s
+	# SP: Construct query and mgProjection [Mongo]
+	#   - _handle_rdftype
+	#   - _handle_sp
+	# SPO: Construct query and mgProjection [Mongo
+	#   - _handle_spo
+	# P
+	#   - _handle_p
+	# SO
+	#   - _handle_so
+	# PO
+	#   - _handle_po
+	# O
+	#   - _handle_o
+	#
+	#
+	# _handlePredicate
+	# P:
+	# 	- if rdf:type check model
+	# 	- else check propName [Mongo]
+	# PO 
+	# 	- if rdf:type check model
+	# 	- else check propName and value [Mongo]
+	#
+	# _handleObject
+	# O
+	# 	- determine value type, walk models, find type-matching fields, construct query and mgProjection
+	#
+	# @param ldf {object} the triple pattern (subject, predicate, object), offset and limit
+	# @param tripleStream {stream} the trieple stream
+	# @param doneLDF called when finished
+	###
+	handleLDFQuery: (ldf, tripleStream, metadataCallback, doneLDF) ->
+		jsonldABoxOpts = {from: 'jsonld', to: 'json3'}
+		metadataCallback or= ({totalCount}) -> log.debug("There are #{totalCount} triples available")
+		ldf.offset or= 0
+		ldf.limit  or= 10
+		currentTriple = ldf.offset
+		if not(ldf.subject or ldf.predicate or ldf.object)
+			handler = '_handle_none'
 
-	_previous : (_ldfQuery) ->
-		return null if _ldfQuery.offset == 0
-		ldfQuery = {}
-		ldfQuery[k] = v for k,v of _ldfQuery
-		ldfQuery.offset -= ldfQuery.limit
-		ldfQuery.offset = Math.max 0, ldfQuery.offset
-		return @_canonical ldfQuery
-
-	_canonical : (ldfQuery) ->
-		ret = "#{@baseURI}/#{@ldfEndpoint}"
-		qs = []
-		qs.push "#{k}=#{encodeURIComponent v}" for k,v of ldfQuery
-		return "#{ret}?#{qs.join '&'}"
+		# Short-circtuit type queries
+		if ldf.predicate and ldf.predicate is RDF_TYPE
+			handler = '_handle_rdftype'
+		else if ldf.subject
+			handler = '_handle_s_sp_spo'
+			if ldf.object and not ldf.predicate
+				handler = '_handle_so'
+		else if ldf.predicate
+			if ldf.object
+				handler = '_handle_po'
+			else
+				handler = '_handle_p'
+		else if ldf.object
+			handler = '_handle_o'
+		else
+			handler = '_handle_none'
+		log.debug("LDF Query", ldf)
+		log.debug("Handling query with #{handler}")
+		if not @[handler]
+			throw "Handler not Implemented: #{handler}"
+		return @[handler].call @, ldf, tripleStream, metadataCallback, (err, count) ->
+			doneLDF err, count
 
 	###
 	# From http://www.hydra-cg.com/spec/latest/triple-pattern-fragments/#controls
@@ -107,95 +155,54 @@ module.exports = class LdfHandlers extends Base
 		log.silly 'Hypermedia controls', controls
 		return @_pushTriples controls, tripleStream, {}, cb
 
-	_pushTriples : (thing, tripleStream, filter={}, cb) ->
-		return @jsonldRapper.convert thing, 'jsonld', 'json3', (err, json3) ->
-			if err
-				log.error err
-				cb err
-			count = 0
-			for triple in json3
-				skip = false
-				for pos in ['subject','predicate','object']
-					if pos of filter
-						skip = triple[pos] isnt filter[pos]
-						break if skip
-				continue if skip
-				tripleStream.push triple
-				count += 1
-			cb null, count
+	_next : (_ldfQuery) ->
+		ldfQuery = {}
+		ldfQuery[k] = v for k,v of _ldfQuery
+		ldfQuery.offset += ldfQuery.limit
+		return @_canonical ldfQuery
 
-	_uriToName: (url,cb) ->
-		if url.indexOf(@schemaBaseURI) isnt 0
-			return cb "Not in schemo: #{url}"
-		return cb null, url.substring(@schemaBaseURI.length)
+	_previous : (_ldfQuery) ->
+		return null if _ldfQuery.offset == 0
+		ldfQuery = {}
+		ldfQuery[k] = v for k,v of _ldfQuery
+		ldfQuery.offset -= ldfQuery.limit
+		ldfQuery.offset = Math.max 0, ldfQuery.offset
+		return @_canonical ldfQuery
 
-	_tokenizeClassURI: (url, cb) ->
-		@_uriToName url, (err, modelName) ->
-			return cb err if err
-			modelName = modelName.substring(0,1).toUpperCase() + modelName.substring(1)
-			if modelName not of @models
-				return cb "No such model: #{modelName}"
-			return cb null, @models[modelName]
+	_canonical : (ldfQuery) ->
+		ret = "#{@baseURI}/#{@ldfEndpoint}"
+		qs = []
+		qs.push "#{k}=#{encodeURIComponent v}" for k,v of ldfQuery
+		return "#{ret}?#{qs.join '&'}"
 
-	_tokenizeInstanceURI: (url, cb) ->
-		if url.indexOf(@apiBaseURI) isnt 0
-			return cb 'Not in schemo'
-		url = url.replace(@apiBaseURI, '')
-		if url.indexOf('/') == -1
-			return cb 'Invalid URL (Missing slash between model and id)'
-		[modelName, id] = url.split '/'
-		modelName = modelName.substring(0,1).toUpperCase() + modelName.substring(1)
-		if modelName not of @models
-			return cb "No such model #{modelName}"
-		return cb null, @models[modelName], id
-
-	###
-	# 
-	# _handleSubject
-	# S: Construct query [Mongo]
-	# SP: Construct query and projection [Mongo]
-	# SPO: Construct query and projection [Mongo
+	#==================================================
 	#
-	# _handlePredicate
-	# P:
-	# 	- if rdf:type check model
-	# 	- else check prop [Mongo]
-	# PO 
-	# 	- if rdf:type check model
-	# 	- else check prop and value [Mongo]
+	# Handlers
 	#
-	# _handleObject
-	# O
-	# 	- determine value type, walk models, find type-matching fields, construct query and projection
-	#
-	# @param ldf {object} the triple pattern (subject, predicate, object), offset and limit
-	# @param tripleStream {stream} the trieple stream
-	# @param doneLDF called when finished
-	###
-	handleLDFQuery: (ldf, tripleStream, metadataCallback, doneLDF) ->
-		jsonldABoxOpts = {from: 'jsonld', to: 'json3'}
-		metadataCallback or= ({totalCount}) -> log.debug("There are #{totalCount} triples available")
-		ldf.offset or= 0
-		ldf.limit  or= 10
-		currentTriple = ldf.offset
-		if ldf.subject and ldf.subject isnt ''
-			handler = '_handleSubject'
-		else if ldf.predicate and ldf.predicate isnt ''
-			handler = '_handlePredicate'
-		else if ldf.object and ldf.object isnt ''
-			handler = '_handleObject'
-		else
-			handler = '_handleNone'
-		log.debug("LDF Query", ldf)
-		log.debug("Handling query with #{handler}")
-		return @[handler].call @, ldf, tripleStream, metadataCallback, (err, count) ->
-			doneLDF err, count
+	#==================================================
 
-	_handleNone : (ldf, tripleStream, metadataCallback, doneLDF) ->
+	_handle_p : (ldf, tripleStream, metadataCallback, doneLDF) ->
+		allModelCount = 0
+		innerMetadataCallback = ({totalCount}) -> allModelCount += totalCount
+		@_uriToName ldf.predicate, (err, propName) =>
+			return doneLDF err if err
+			log.debug "propName: #{propName}"
+			mgQueryDoc = {}
+			mgProjection = {_id:true}
+			mgQueryDoc[propName] = {$exists:true}
+			mgProjection[propName] = true
+			@_queryAllModels ldf, tripleStream, innerMetadataCallback, mgQueryDoc, mgProjection, (err) =>
+				if err
+					log.error err
+					return doneLDF err
+				metadataCallback {totalCount: allModelCount}
+				doneLDF()
+
+	_handle_none : (ldf, tripleStream, metadataCallback, doneLDF) ->
 		totalCount = 0
 		asyncCallback = (metadata) -> totalCount += metadata.totalCount
-		queryDoc = {}
-		projection = {_id:true}
+		mgQueryDoc = {}
+		mgProjection = {_id:true}
 		nrFound = 0
 		Async.eachSeries @models, (model, doneModel) =>
 			if nrFound > ldf.limit
@@ -204,13 +211,14 @@ module.exports = class LdfHandlers extends Base
 				log.debug("Total count for #{model.modelName}", totalCount)
 				return doneModel err if err
 				metadataCallback {totalCount}
-				query = model.find(queryDoc, projection)
+				query = model.where(mgQueryDoc, mgProjection)
 				query.limit(ldf.limit)
 				query.exec (err, things) =>
 					return doneModel err if err
 					Async.each things, (thing, doneThing) =>
-						@_pushTriples thing.jsonldABox(), tripleStream, ldf, (err, totalCount) =>
-							nrFound += totalCount
+						@_pushTriples thing.jsonldABox(), tripleStream, ldf, (err, tripleCount) =>
+							nrFound += tripleCount
+							log.debug nrFound
 							doneThing()
 					, doneModel
 		, (err) ->
@@ -219,37 +227,23 @@ module.exports = class LdfHandlers extends Base
 			metadataCallback {totalCount}
 			doneLDF()
 
-	_handleSubject : (ldf, tripleStream, metadataCallback, doneLDF) ->
-		if ldf.predicate is RDF_TYPE
-			return @_handlePredicateRdfType.apply(@, arguments)
-		@_tokenizeInstanceURI ldf.subject, (err, model, id) =>
+	_handle_s_sp_spo : (ldf, tripleStream, metadataCallback, doneLDF) ->
+		@_tokenizeInstanceURI ldf.subject, (err, model, _id) =>
 			return doneLDF err if err
-			mongoQuery = {_id:id}
+			mongoQuery = {_id}
 			if ldf.predicate
-				@_uriToName ldf.predicate, (err, propName) =>
+				return @_uriToName ldf.predicate, (err, propName) =>
 					return doneLDF err if err
-					mongoQuery[propName] = {$exists:1}
+					if ldf.object
+						mongoQuery[propName] = @_typeifyString(ldf.object)
+					else
+						mongoQuery[propName] = {$exists:true}
 					return @_executeModelQuery ldf, model, mongoQuery, tripleStream, metadataCallback, doneLDF
 			else
 				return @_executeModelQuery ldf, model, mongoQuery, tripleStream, metadataCallback, doneLDF
 
-	_executeModelQuery : (ldf, model, mongoQuery, tripleStream, metadataCallback, doneLDF) ->
-		log.debug("Mongo queyr", mongoQuery)
-		query = model.where mongoQuery
-		query.findOne (err, thing) =>
-			return doneLDF err if err
-			@_pushTriples thing.jsonldABox(), tripleStream, ldf, (err, totalCount) ->
-				return doneLDF err if err
-				metadataCallback {totalCount}
-				doneLDF()
-
-	_handlePredicate : (ldf, tripleStream, metadataCallback, doneLDF) ->
-		self = this
-		if ldf.predicate is RDF_TYPE
-			return @_handlePredicateRdfType.apply(@, arguments)
-		# Async
-
-	_handlePredicateRdfType : (ldf, tripleStream, metadataCallback, doneLDF) ->
+	# <a id='_handle_rdftype'/>
+	_handle_rdftype : (ldf, tripleStream, metadataCallback, doneLDF) ->
 		if ldf.subject
 			@_tokenizeInstanceURI ldf.subject, (err, model, id) =>
 				return doneLDF err if err
@@ -277,92 +271,113 @@ module.exports = class LdfHandlers extends Base
 				metadataCallback {totalCount}
 				doneLDF()
 
+	#==================================================
+	#
+	# Query MongoDB
+	#
+	#==================================================
+
 	_queryModelRdfType:	(model, tripleStream, metadataCallback, doneLDF) ->
-		self = this
-		queryDoc = {}
-		projection = {_id:true}
-		model.count (err, totalCount) ->
+		mgQueryDoc = {}
+		mgProjection = {_id:true}
+		model.count (err, totalCount) =>
 			metadataCallback {totalCount}
-			model.find queryDoc, projection, (err, things) ->
+			model.find mgQueryDoc, mgProjection, (err, things) =>
 				return doneLDF err if err
 				for thing in things
 					tripleStream.push {
 						subject: thing.uri()
 						predicate: RDF_TYPE
-						object: self.uriForClass(model.modelName)
+						object: @uriForClass(model.modelName)
 					}
 				doneLDF()
 
-		# find the right model if any
-		# find the document for the id
+	_executeModelQuery : (ldf, model, mongoQuery, tripleStream, metadataCallback, doneLDF) ->
+		log.debug("Mongo query", mongoQuery)
+		query = model.where mongoQuery
+		query.findOne (err, thing) =>
+			return doneLDF err if err
+			@_pushTriples thing.jsonldABox(), tripleStream, ldf, (err, totalCount) ->
+				return doneLDF err if err
+				metadataCallback {totalCount}
+				doneLDF()
 
-		# Async.forEachOfSeries @models, (model, modelName, doneModel) =>
-		#     mongoQuery = @_buildMongoQuery(ldf, model)
-		#     log.silly "Mongo query:", mongoQuery
-		#     query = model.find mongoQuery
-		#     query.exec (err, docs) =>
-		#         return doneModel err if err
-		#         Async.eachLimit docs, 20, (doc, doneDocs) =>
-		#             doc.jsonldABox jsonldABoxOpts, (err, triples) =>
-		#                 Async.eachSeries triples, (triple, doneField) =>
-		#                     # if ldf.predicate and Utils.lastUriSegment(triple.predicate) is 'type'
-		#                     if ldf.object and not Utils.literalValueMatch(triple.object, ldf.object)
-		#                         return doneField()
-		#                     else if ldf.predicate and not Utils.lastUriSegmentMatch(triple.predicate, ldf.predicate)
-		#                         return doneField()
-		#                     currentTriple += 1
-		#                     if currentTriple > ldf.offset + ldf.limit
-		#                         return doneField "max count reached (#{currentTriple} > #{ldf.offset} + #{ldf.limit})"
-		#                     else if currentTriple > ldf.offset
-		#                         tripleStream.push triple
-		#                     return doneField()
-		#                 , (err) ->
-		#                     log.silly "Done with fields of #{doc.uri()}: #{err}"
-		#                     return doneDocs err
-		#         , (err) ->
-		#             log.silly "Done with documents in '#{modelName}': #{err}", currentTriple
-		#             return doneModel err
-		# , (err) ->
-		#     log.silly "Finished query: #{err}"
-		#     log.logstop('handle-ldf')
-		#     if err instanceof Error
-		#         doneLDF err
-		#     else
-		#         doneLDF null, tripleStream
+	_queryAllModels :  (ldf, tripleStream, metadataCallback, mgQueryDoc, mgProjection, doneLDF) ->
+		thingHandler = (thing, doneThing) =>
+			@_pushTriples thing.jsonldABox(), tripleStream, ldf, (err, tripleCount) =>
+				log.debug "Added #{tripleCount} triples"
+				return doneThing()
+		modelHandler = (model, doneModel) =>
+			if ldf.found > ldf.limit
+				return doneModel()
+			model.count (err, modelCount) =>
+				return doneModel(err) if err
+				return doneModel() if modelCount is 0
+				log.debug("Total count for #{model.modelName}", modelCount)
+				metadataCallback {totalCount: modelCount}
+				if ldf.offset > modelCount
+					log.debug "Offset beyond model '#{model.modelName}' (#{ldf.offset} > #{modelCount})"
+					log.debug "Skip to next model"
+					ldf.offset = 0
+					return doneModel()
+				query = model.find(mgQueryDoc, mgProjection)
+				log.debug("Querying MongoDB", mgQueryDoc, mgProjection)
+				query.skip(ldf.offset)
+				query.limit(ldf.limit)
+				query.exec (err, things) =>
+					return doneModel(err) if err
+					log.debug "Things #{things.length}"
+					Async.eachSeries things, thingHandler, (err) ->
+						return doneModel(err) if err
+						return doneModel()
+		Async.eachSeries @models, modelHandler, doneLDF
 
-	_buildMongoQuery : (ldf, model) ->
-		mongoQuery = {}
-		if ldf.subject
-			mongoQuery._id = Utils.lastUriSegment(ldf.subject)
-		if ldf.object
-			ldf.object = Utils.literalValue(ldf.object)
-		if ldf.predicate and ldf.predicate isnt 'type'
-			if ldf.object
-				clause = @_make_clause(model, Utils.lastUriSegment(ldf.predicate), ldf.object)
-				if clause
-					mongoQuery[k] = v for k,v of clause
-			else
-				mongoQuery[Utils.lastUriSegment(ldf.predicate)] = {$exists:true}
-		else if ldf.object
-			orQuery = []
-			for field in model.properFields()
-				clause = @_make_clause(model, field, ldf.object)
-				orQuery.push clause if clause
-			mongoQuery['$or'] = orQuery
-		return mongoQuery
+	#==================================================
+	#
+	# Helpers
+	#
+	#==================================================
 
-	_make_clause: (model, field, value) ->
-		clause = {}
-		if field not of model.schema.paths
-			return null
-		fieldType = model.schema.paths[field].instance
-		if fieldType is 'Number'
-			clause[field] = value if Utils.isNumber(value)
-		else if fieldType is 'Date'
-			clause[field] = value if Utils.isDate(value)
-		else
-			clause[field] = value
-		if Object.keys(clause).length > 0
-			return clause
-		return null
+	_pushTriples : (thing, tripleStream, filter, cb) ->
+		return @jsonldRapper.convert thing, 'jsonld', 'json3', (err, json3) ->
+			if err
+				log.error err
+				cb err
+			count = 0
+			for triple in json3
+				skip = false
+				for pos in ['subject','predicate','object']
+					if pos of filter
+						skip = triple[pos] isnt filter[pos]
+						if skip
+							log.debug "Skip because '#{pos}': #{triple[pos]} isnt #{filter[pos]}"
+							break
+				continue if skip
+				tripleStream.push triple
+				count += 1
+			cb null, count
 
+	_uriToName: (url,cb) ->
+		if url.indexOf(@schemaBaseURI) isnt 0
+			return cb "Not in schemo: #{url}"
+		return cb null, url.substring(@schemaBaseURI.length)
+
+	_tokenizeClassURI: (url, cb) ->
+		@_uriToName url, (err, modelName) =>
+			return cb err if err
+			modelName = modelName.substring(0,1).toUpperCase() + modelName.substring(1)
+			if modelName not of @models
+				return cb "No such model: #{modelName}"
+			return cb null, @models[modelName]
+
+	_tokenizeInstanceURI: (url, cb) ->
+		if url.indexOf(@apiBaseURI) isnt 0
+			return cb 'Not in schemo'
+		url = url.replace(@apiBaseURI, '')
+		if url.indexOf('/') == -1
+			return cb 'Invalid URL (Missing slash between model and id)'
+		[modelName, id] = url.split '/'
+		modelName = modelName.substring(0,1).toUpperCase() + modelName.substring(1)
+		if modelName not of @models
+			return cb "No such model #{modelName}"
+		return cb null, @models[modelName], id
