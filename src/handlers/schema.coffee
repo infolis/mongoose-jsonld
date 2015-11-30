@@ -9,7 +9,6 @@ module.exports = class SchemaHandlers extends Base
 	isBlank: (id) -> id.indexOf('_:') == 0
 
 	inject: (app, done) ->
-		console.log @instanceNames
 		@jsonldTBox {to: 'jsonld', profile: JsonldRapper.JSONLD_PROFILE.FLATTENED}, (err, expand) =>
 			@serialize expand, {to: 'jsonld', profile: JsonldRapper.JSONLD_PROFILE.EXPANDED}, (err, flat) =>
 				indexed = {}

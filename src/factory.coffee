@@ -283,8 +283,9 @@ module.exports = class Factory extends Base
 		schema.index(indexProp)
 		# Log errors
 		model.on 'error', (err) ->
-			log.error err
+			if err.message.indexOf('sockets closed') == -1
+				log.error "THIS", err
 		model.on 'index', (err) ->
-			return log.error err if err
-			return log.info "Index for '#{name}' built successfully"
+			# return log.error err if err
+			return log.silly "Index for '#{name}' built successfully"
 		return model

@@ -52,10 +52,11 @@ module.exports = class Schemo extends Base
 
 		@checkForConflicts()
 		@handlers = {}
-		for m in ['schema', 'restful', 'swagger', 'ldf']
+		Async.eachSeries ['schema', 'restful', 'swagger', 'ldf'], (m, loaded) =>
 			mod = require "./handlers/#{m}"
 			log.debug "Registering '#{m}' handler"
 			@handlers[m] = new mod(@)
+			loaded()
 
 
 	#
@@ -80,12 +81,11 @@ module.exports = class Schemo extends Base
 				conflicts[name] = instances
 		log.error("Multiple classes/properties with very similar name:\n#{Utils.dump(conflicts)}")
 
-
 	addClass: (className, classDef) ->
 		@schemas[className] = schema = @factory.createSchema(className, classDef, {strict: true})
 		@models[className] = model = @factory.createModel(className, schema)
 		model.ensureIndexes (err) ->
-			return log.error err if err
+			# return log.error err if err
 		@onto.classes[className] = model.jsonldTBox()
 
 	jsonldTBox : (opts, cb) ->
