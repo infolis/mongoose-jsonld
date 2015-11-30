@@ -1,0 +1,10 @@
+language: node_js
+dist: trusty
+services:
+  - mongodb
+node_js:
+  "0.12"
+before_install:
+  - sudo apt-get update -qq
+  - sudo apt-get install -y raptor2-utils
+
