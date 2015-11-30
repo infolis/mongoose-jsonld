@@ -8,15 +8,18 @@ log = require('infolis-logging')(module)
 
 class Base
 
-	XSD: 'http://www.w3.org/2001/XMLSchema#'
-	RDF: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#'
-	BASEURI: 'http://infolis.gesis.org/infolink'
-	SCHEMABASE:'http://infolis.gesis.org/infolink/schema/'
+	@XSD: 'http://www.w3.org/2001/XMLSchema#'
+	@RDF: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#'
+	@RDF_TYPE = Base.RDF + "type"
+	@BASEURI: 'http://infolis.gesis.org/infolink'
+	@SCHEMABASE:'http://infolis.gesis.org/infolink/schema/'
+	@URI_EXECUTION = Base.SCHEMABASE + "Execution"
+	@URI_ALGORITHM = Base.SCHEMABASE + "algorithm"
 
 	connect: ->
 		@schemo = new Schemo(
-			mongoose: Mongoose.createConnection('mongodb://localhost:27018/mongoose-test')
-			baseURI: @BASEURI
+			mongoose: Mongoose.createConnection('localhost:27018/mongoose-test')
+			baseURI: @Base.BASEURI
 			apiPrefix: '/api'
 			schemo: TSON.load "#{__dirname}/../../infolis-web/data/infolis.tson"
 		)
@@ -26,4 +29,4 @@ class Base
 		@schemo.mongoose.close()
 
 
-module.exports = new Base()
+module.exports = Base
