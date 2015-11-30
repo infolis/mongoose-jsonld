@@ -16,6 +16,14 @@ module.exports  = class MongooseJsonldBase
 		if not opts.mongoose
 			throw "Must pass Mongoose DB Connection as 'mongoose'"
 		@mongoose = opts.mongoose
+		@mongoose.on 'error', (err) ->
+			console.log 'FOFOFOFOFOFOFOF'
+			console.log 'FOFOFOFOFOFOFOF'
+			console.log 'FOFOFOFOFOFOFOF'
+			console.log 'FOFOFOFOFOFOFOF'
+			console.log 'FOFOFOFOFOFOFOF'
+			console.log 'FOFOFOFOFOFOFOF'
+			throw  err
 		#
 		# Populate this with the arguments passed to constructor
 		#

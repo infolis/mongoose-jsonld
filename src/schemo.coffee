@@ -52,7 +52,7 @@ module.exports = class Schemo extends Base
 
 		@checkForConflicts()
 		@handlers = {}
-		Async.eachSeries ['schema', 'restful', 'swagger', 'ldf'], (m, loaded) =>
+		Async.eachSeries ['schema', 'restful', 'swagger',], (m, loaded) =>
 			mod = require "./handlers/#{m}"
 			log.debug "Registering '#{m}' handler"
 			@handlers[m] = new mod(@)
@@ -79,7 +79,7 @@ module.exports = class Schemo extends Base
 		for name,instances of _lcInstanceNames
 			if instances.length > 1
 				conflicts[name] = instances
-		log.error("Multiple classes/properties with very similar name:\n#{Utils.dump(conflicts)}")
+		log.warn("Multiple classes/properties with very similar name:\n#{Utils.dump(conflicts)}")
 
 	addClass: (className, classDef) ->
 		@schemas[className] = schema = @factory.createSchema(className, classDef, {strict: true})
