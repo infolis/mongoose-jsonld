@@ -52,7 +52,7 @@ module.exports = class Schemo extends Base
 
 		@checkForConflicts()
 		@handlers = {}
-		Async.eachSeries ['schema', 'restful', 'swagger',], (m, loaded) =>
+		Async.eachSeries ['schema', 'restful', 'swagger', 'ldf'], (m, loaded) =>
 			mod = require "./handlers/#{m}"
 			log.debug "Registering '#{m}' handler"
 			@handlers[m] = new mod(@)
