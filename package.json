@@ -34,7 +34,7 @@
     "accepts": "^1.3.0",
     "async": "^1.5.0",
     "express-jsonld": "0.0.16",
-    "infolis-logging": "^0.0.1",
+    "infolis-logging": "^0.0.2",
     "is-number": "^2.0.2",
     "jsonld-common-contexts": "0.0.12",
     "jsonld-rapper": "^0.2.0",
