@@ -202,27 +202,30 @@ module.exports = class LdfHandlers extends Base
 		mgQueryDoc = {}
 		mgProjection = {_id:true}
 		nrFound = 0
-		Async.eachSeries @models, (model, doneModel) =>
-			if nrFound > ldf.limit
-				return doneModel()
-			model.count (err, totalCount) =>
-				log.silly("Total count for #{model.modelName}", totalCount)
-				return doneModel err if err
-				asyncCallback {totalCount}
-				query = model.where(mgQueryDoc, mgProjection)
-				query.limit(ldf.limit)
-				query.exec (err, things) =>
+		@_tokenizeClassURI ldf.object, (err) =>
+			unless err
+				return @_handle_rdftype ldf, tripleStream, metadataCallback, doneLDF
+			Async.eachSeries @models, (model, doneModel) =>
+				if nrFound > ldf.limit
+					return doneModel()
+				model.count (err, totalCount) =>
+					log.silly("Total count for #{model.modelName}", totalCount)
 					return doneModel err if err
-					Async.each things, (thing, doneThing) =>
-						@_pushTriples thing.jsonldABox(), tripleStream, ldf, (err, tripleCount) =>
-							nrFound += tripleCount
-							doneThing()
-					, doneModel
-		, (err) ->
-			log.error err if err
-			return doneLDF err if err
-			metadataCallback {totalCount}
-			doneLDF()
+					asyncCallback {totalCount}
+					query = model.where(mgQueryDoc, mgProjection)
+					query.limit(ldf.limit)
+					query.exec (err, things) =>
+						return doneModel err if err
+						Async.each things, (thing, doneThing) =>
+							@_pushTriples thing.jsonldABox(), tripleStream, ldf, (err, tripleCount) =>
+								nrFound += tripleCount
+								doneThing()
+						, doneModel
+			, (err) ->
+				log.error err if err
+				return doneLDF err if err
+				metadataCallback {totalCount}
+				doneLDF()
 
 	# <a id='_handle_s'/>
 	# <a id='_handle_sp'/>
@@ -362,6 +365,7 @@ module.exports = class LdfHandlers extends Base
 			cb null, count
 
 	_uriToName: (url,cb) ->
+		return cb "Undefined url" unless url
 		if url.indexOf(@schemaBaseURI) isnt 0
 			return cb "Not in schemo: #{url}"
 		return cb null, url.substring(@schemaBaseURI.length)

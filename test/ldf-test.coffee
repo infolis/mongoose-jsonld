@@ -27,6 +27,7 @@ ALL_TESTS = [
 	'_handle_rdftype_spo'
 	'_handle_rdftype_p'
 	'_handle_rdftype_po'
+	'_handle_rdftype_o'
 
 	# NOT IMPLEMENTED
 	# '_handle_number'
@@ -121,6 +122,13 @@ class LdfTests extends BaseTest
 		query = subject: doc1.uri(), predicate: NS.RDF_TYPE, type: NS.URI_EXECUTION
 		@_test '_handle_rdftype [spo]', query, DEBUG_METADATA_CALLBACK, (err, tripleStream) ->
 			t.equals tripleStream[0].subject, doc1.uri()
+			t.equals tripleStream[0].predicate, NS.RDF_TYPE
+			t.equals tripleStream[0].object, NS.URI_EXECUTION
+			return cb()
+
+	_handle_rdftype_o : (t, cb) ->
+		query = object: NS.URI_EXECUTION
+		@_test '_handle_rdftype [o]', query, DEBUG_METADATA_CALLBACK, (err, tripleStream) ->
 			t.equals tripleStream[0].predicate, NS.RDF_TYPE
 			t.equals tripleStream[0].object, NS.URI_EXECUTION
 			return cb()
