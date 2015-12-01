@@ -6,13 +6,34 @@ test     = require 'tapes'
 
 log = require('infolis-logging')(module)
 
-BaseTest = require('./base')
+{NS, BaseTest} = require('./base-test')
 
-{
-	RDF_TYPE
-	URI_EXECUTION
-	URI_ALGORITHM
-} = BaseTest
+ALL_TESTS = [
+
+	# Neither S nor P nor O
+	'_handle_none'
+
+	# Pattern
+	'_handle_s'
+	'_handle_sp'
+	'_handle_spo'
+	'_handle_so'
+	'_handle_p'
+	'_handle_po'
+	'_handle_o'
+
+	# Special case
+	'_handle_rdftype_sp'
+	'_handle_rdftype_spo'
+	'_handle_rdftype_p'
+	'_handle_rdftype_po'
+
+	# NOT IMPLEMENTED
+	# '_handle_number'
+	# '_handle_uri'
+	# '_handle_boolean'
+
+]
 
 NR_EXECUTIONS = 0
 
@@ -21,7 +42,7 @@ data2 = data1 =
 	algorithm: 'io.github.infolis.algorithm.Indexer'
 doc1 = doc2 = null
 
-DEBUG_METADATA_CALLBACK = (count) -> log.debug "Metadata:", count
+DEBUG_METADATA_CALLBACK = (metadata) -> log.debug "Metadata:", metadata
 
 
 class LdfTests extends BaseTest
@@ -32,7 +53,7 @@ class LdfTests extends BaseTest
 	prepare : (cb) ->
 		@schemo = new Schemo(
 			mongoose: Mongoose.createConnection('mongodb://localhost:27018/mongoose-test')
-			baseURI: @BASEURI
+			baseURI: NS.BASEURI
 			apiPrefix: '/api'
 			schemo: TSON.load "#{__dirname}/../../infolis-web/data/infolis.tson"
 		)
@@ -51,24 +72,10 @@ class LdfTests extends BaseTest
 					cb()
 
 	run : (cb) -> 
-		tests = [
-			'_handle_s'
-			# '_handle_rdftype_sp'
-			# '_handle_rdftype_spo'
-			# '_handle_rdftype_p'
-			# '_handle_rdftype_po'
-			# '_handle_sp'
-			# '_handle_p'
-			#
-			# NOT IMPLEMENTED
-			# '_handle_none'
-			# '_handle_spo'
-			# '_handle_so'
-			# '_handle_po'
-			# '_handle_o'
-		]
 		@prepare =>
-			Async.eachSeries tests, (test, doneTest) =>
+			Async.eachSeries ALL_TESTS, (test, doneTest) =>
+				if test not of @
+					throw new Error("Test not implemented #{test}")
 				@[test].apply(@, [@t, doneTest])
 			, (err, doneTests) ->
 				log.debug "Finished tests"
@@ -84,53 +91,91 @@ class LdfTests extends BaseTest
 
 	_handle_s : (t, cb) ->
 		query = subject: doc1.uri()
-		log.debug doc1.uri()
 		@_test '_handle_s', query, DEBUG_METADATA_CALLBACK, (err, tripleStream) ->
 			t.notOk err
 			t.equals tripleStream.length, 3
 			return cb()
 
 	_handle_rdftype_p : (t, cb) ->
-		query = subject: doc1.uri(), predicate: RDF_TYPE
+		query = subject: doc1.uri(), predicate: NS.RDF_TYPE
 		@_test '_handle_rdftype_p', query, DEBUG_METADATA_CALLBACK, (err, tripleStream) =>
 			t.equals tripleStream.length, 1
-			t.equals tripleStream[0].object, URI_EXECUTION
+			t.equals tripleStream[0].object, NS.URI_EXECUTION
 			return cb()
 
 	_handle_rdftype_sp : (t, cb) ->
-		query = subject: doc1.uri(), predicate: RDF_TYPE
+		query = subject: doc1.uri(), predicate: NS.RDF_TYPE
 		@_test '_handle_rdftype [sp]', query, DEBUG_METADATA_CALLBACK, (err, tripleStream) ->
 			t.equals doc1.uri(), tripleStream[0].subject
-			t.equals RDF_TYPE, tripleStream[0].predicate,
-			t.equals URI_EXECUTION, tripleStream[0].object
+			t.equals NS.RDF_TYPE, tripleStream[0].predicate,
+			t.equals NS.URI_EXECUTION, tripleStream[0].object
 			return cb()
 
 	_handle_rdftype_po : (t, cb) ->
-		query = predicate: RDF_TYPE, object: URI_EXECUTION
+		query = predicate: NS.RDF_TYPE, object: NS.URI_EXECUTION
 		@_test '_handle_rdftype_po', query, DEBUG_METADATA_CALLBACK, (err, tripleStream) ->
-			t.equals tripleStream[0].object, URI_EXECUTION
+			t.equals tripleStream[0].object, NS.URI_EXECUTION
 			return cb()
 
 	_handle_rdftype_spo : (t, cb) ->
-		query = subject: doc1.uri(), predicate: RDF_TYPE, predicate: RDF_TYPE
+		query = subject: doc1.uri(), predicate: NS.RDF_TYPE, type: NS.URI_EXECUTION
 		@_test '_handle_rdftype [spo]', query, DEBUG_METADATA_CALLBACK, (err, tripleStream) ->
 			t.equals tripleStream[0].subject, doc1.uri()
-			t.equals tripleStream[0].predicate, RDF_TYPE
-			t.equals tripleStream[0].object, URI_EXECUTION
+			t.equals tripleStream[0].predicate, NS.RDF_TYPE
+			t.equals tripleStream[0].object, NS.URI_EXECUTION
 			return cb()
 
 	_handle_sp : (t, cb) ->
-		query = subject: doc1.uri(), predicate: URI_ALGORITHM
-		@_test '_handle_sp', query, DEBUG_METADATA_CALLBACK, (err, tripleStream) ->
+		query = subject: doc1.uri(), predicate: NS.URI_ALGORITHM
+		metadataCallback = ({totalCount}) -> t.equals 1, totalCount
+		@_test '_handle_sp', query, metadataCallback, (err, tripleStream) ->
 			t.equals tripleStream.length, 1
-			t.equals tripleStream[0].object, "\"#{doc1.algorithm}\"^^#{BaseTest.XSD}string"
+			t.equals tripleStream[0].object, "\"#{doc1.algorithm}\"^^#{NS.XSD}string"
+			return cb()
+
+	_handle_spo : (t, cb) ->
+		query = subject: doc1.uri(), predicate: NS.URI_ALGORITHM, object: doc1.algorithm
+		metadataCallback = ({totalCount}) -> t.equals 1, totalCount
+		@_test '_handle_spo', query, metadataCallback, (err, tripleStream) ->
+			t.equals tripleStream[0].subject, doc1.uri()
+			t.equals tripleStream[0].predicate, NS.URI_ALGORITHM
+			t.equals tripleStream[0].object, "\"#{doc1.algorithm}\"^^#{NS.XSD}string"
 			return cb()
 
 	_handle_p : (t, cb) ->
-		query = predicate: URI_ALGORITHM
+		query = predicate: NS.URI_ALGORITHM
 		metadataCallback = ({totalCount}) -> t.equals NR_EXECUTIONS, totalCount
 		@_test '_handle_p', query, metadataCallback, (err, tripleStream) ->
-			log.debug [tripleStream]
+			return cb()
+
+	_handle_po : (t, cb) ->
+		query = predicate: NS.URI_ALGORITHM, object: doc1.algorithm
+		metadataCallback = ({totalCount}) -> t.equals NR_EXECUTIONS, totalCount
+		@_test '_handle_po', query, metadataCallback, (err, tripleStream) ->
+			t.equals tripleStream[0].predicate, NS.URI_ALGORITHM
+			t.equals tripleStream[0].object, "\"#{doc1.algorithm}\"^^#{NS.XSD}string"
+			return cb()
+
+	_handle_so : (t, cb) ->
+		query = subject: doc1.uri(), object: doc1.algorithm
+		@_test '_handle_po', query, DEBUG_METADATA_CALLBACK, (err, tripleStream) ->
+			t.equals tripleStream[0].predicate, NS.URI_ALGORITHM
+			t.equals tripleStream[0].object, "\"#{doc1.algorithm}\"^^#{NS.XSD}string"
+			return cb()
+
+	_handle_o : (t, cb) ->
+		query = object: doc1.algorithm
+		@_test '_handle_o', query, DEBUG_METADATA_CALLBACK, (err, tripleStream) ->
+			t.equals tripleStream[0].predicate, NS.URI_ALGORITHM
+			t.equals tripleStream[0].object, "\"#{doc1.algorithm}\"^^#{NS.XSD}string"
+			return cb()
+
+	_handle_none : (t, cb) ->
+		query = {}
+		metadataCallback = ({totalCount}) -> t.ok totalCount > 1
+		# metadataCallback = DEBUG_METADATA_CALLBACK
+		@_test '_handle_none', query, metadataCallback, (err, tripleStream) ->
+			t.ok tripleStream.length > 1
 			return cb()
 
 test 'LDF Triple Patterns', (t) ->

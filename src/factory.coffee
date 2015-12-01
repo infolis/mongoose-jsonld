@@ -264,5 +264,5 @@ module.exports = class Factory extends Base
 				log.error "Non-Socket-Close error", err
 		model.on 'index', (err) ->
 			# return log.error err if err
-			return log.debug "Index for '#{name}' built successfully"
+			return log.silly "Index for '#{name}' built successfully"
 		return model
