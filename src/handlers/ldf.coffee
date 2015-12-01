@@ -3,13 +3,16 @@ Accepts = require 'accepts'
 Utils   = require '../utils'
 Base    = require '../base'
 
-log = require('../log')(module)
+log = require('../log')(module, level: 'silly')
 
 HYDRA    = "http://www.w3.org/ns/hydra/core#"
+ENDS     = 'http://labs.mondeca.com/vocab/endpointStatus#'
 VOID     = "http://rdfs.org/ns/void#"
 RDF      = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
 XSD      = 'http://www.w3.org/2001/XMLSchema#'
 RDF_TYPE = RDF + "type"
+
+DEFAULT_LIMIT = 10
 
 module.exports = class LdfHandlers extends Base
 
@@ -21,21 +24,27 @@ module.exports = class LdfHandlers extends Base
 
 	inject: (app, done) ->
 		app.get @ldfEndpoint, (req, res, next) =>
-			ldfQuery = req.query
-			ldfQuery.limit     = parseInt(req.query.limit) or 100
-			ldfQuery.offset    = parseInt(req.query.offset) or 0
-			ldfQuery.subject   = req.query.subject
-			ldfQuery.predicate = req.query.predicate
-			ldfQuery.object    = req.query.object
+			ldf = req.query
+			ldf.controls  = false
+			ldf.limit     = parseInt(req.query.limit) or DEFAULT_LIMIT
+			ldf.offset    = parseInt(req.query.offset) or 0
+			ldf.subject   = req.query.subject
+			ldf.predicate = req.query.predicate
+			ldf.object    = req.query.object
 			for pos in ['subject','predicate','object']
-				if ldfQuery[pos] is ''
-					delete ldfQuery[pos]
+				if ldf[pos] is '' or typeof ldf[pos] is 'undefined'
+					delete ldf[pos]
 			tripleStream = []
 
 			totalCount = 0
 			metadataCallback = (metadata) ->
 				totalCount += metadata.totalCount
-			@handleLDFQuery ldfQuery, tripleStream, metadataCallback, (err) =>
+
+			if ldf.controls
+				handler = @handleLDFQuery
+			else
+				handler = @handleLDFQueryWithControls
+			handler.call @, ldf, tripleStream, metadataCallback, (err) =>
 				acceptable = Accepts(req).types()
 				if acceptable.length == 0 or 'application/n3+json' in acceptable
 					res.send tripleStream
@@ -43,7 +52,7 @@ module.exports = class LdfHandlers extends Base
 					@jsonldRapper.convert tripleStream, 'json3', 'jsonld', (err, converted) =>
 						req.jsonld = converted
 						res.locals.is_ldf = true
-						res.locals[k] = v for k,v of ldfQuery
+						res.locals[k] = v for k,v of ldf
 						@expressJsonldMiddleware(req, res, next)
 		done()
 
@@ -85,10 +94,8 @@ module.exports = class LdfHandlers extends Base
 	###
 	handleLDFQuery: (ldf, tripleStream, metadataCallback, doneLDF) ->
 		jsonldABoxOpts = {from: 'jsonld', to: 'json3'}
-		metadataCallback or= ({totalCount}) -> log.debug("There are #{totalCount} triples available")
 		ldf.offset or= 0
-		ldf.limit  or= 10
-		currentTriple = ldf.offset
+		ldf.limit  or= DEFAULT_LIMIT
 		# Short-circtuit type queries
 		if ldf.predicate and ldf.predicate is RDF_TYPE
 			handler = '_handle_rdftype'
@@ -98,12 +105,26 @@ module.exports = class LdfHandlers extends Base
 			handler = '_handle_p_po'
 		else
 			handler = '_handle_none_o'
-		log.silly("LDF Query", ldf)
-		log.silly("Handling query with #{handler}")
+		log.debug("LDF Query", ldf)
+		log.debug("Handling query with #{handler}")
 		if not @[handler]
 			throw "Handler not Implemented: #{handler}"
-		return @[handler].call @, ldf, tripleStream, metadataCallback, (err, count) ->
-			doneLDF err, count
+		return @[handler].call @, ldf, tripleStream, metadataCallback, doneLDF
+
+	handleLDFQueryWithControls : (ldf, tripleStream, metadataCallback, doneLDF) ->
+		metadata = {
+			totalCount: 0
+		}
+		_start = process.hrtime()
+		innerMetadataCallback = (metadataArg) ->
+			if 'totalCount' of metadataArg
+				metadata.totalCount += metadataArg.totalCount
+			metadataCallback metadata
+			log.debug("There are #{metadata.totalCount} triples available")
+		@handleLDFQuery ldf, tripleStream, innerMetadataCallback, (err) =>
+			return doneLDF err if err
+			metadata.queryTime = @_msPassed _start
+			@_hydraControls ldf, tripleStream, metadata, doneLDF
 
 	###
 	# From http://www.hydra-cg.com/spec/latest/triple-pattern-fragments/#controls
@@ -117,53 +138,56 @@ module.exports = class LdfHandlers extends Base
 	#                  [ hydra:variable "o"; hydra:property rdf:object ]
 	# ].
 	###
-	_hydraControls : (ldfQuery, tripleStream, cb) ->
+	_hydraControls : (ldf, tripleStream, metadata, cb) ->
 		controls =
 			'@context':
 				hydra: HYDRA
 				void: VOID
 				rdf: RDF
+				ends: ENDS
 			'@id': "#{@baseURI}#{@apiPrefix}/ldf"
-			'void:subset': '@id': @_canonical(ldfQuery)
-			'hydra:search':
-				'hydra:template': "#{@baseURI}#{@apiPrefix}/lds{?subject,predicate,object}"
-				'hydra:mapping': [
-					{
-						'hydra:variable': 'subject'
-						'hydra:property': '@id': RDF + 'subject'
-					},{
-						'hydra:variable': 'predicate'
-						'hydra:property': '@id': RDF + 'predicate'
-					},{
-						'hydra:variable': 'object'
-						'hydra:property': '@id': RDF + 'object'
-					}
-				]
-		next = @_next(ldfQuery)
-		controls['hydra:next'] = {'@id':next} if next 
-		previous = @_previous(ldfQuery)
+			'void:documents': metadata.totalCount
+			'ends:statusResponseTime': metadata.queryTime
+			'void:subset': '@id': @_canonical(ldf)
+			# 'hydra:search':
+			#     'hydra:template': "#{@baseURI}#{@apiPrefix}/lds{?subject,predicate,object}"
+			#     'hydra:mapping': [
+			#         {
+			#             'hydra:variable': 'subject'
+			#             'hydra:property': '@id': RDF + 'subject'
+			#         },{
+			#             'hydra:variable': 'predicate'
+			#             'hydra:property': '@id': RDF + 'predicate'
+			#         },{
+			#             'hydra:variable': 'object'
+			#             'hydra:property': '@id': RDF + 'object'
+			#         }
+			#     ]
+		next = @_next(ldf)
+		controls['hydra:next'] = {'@id':next} if next
+		previous = @_previous(ldf)
 		controls['hydra:previous'] = {'@id':previous} if previous
 		log.silly 'Hypermedia controls', controls
 		return @_pushTriples controls, tripleStream, {}, cb
 
-	_next : (_ldfQuery) ->
-		ldfQuery = {}
-		ldfQuery[k] = v for k,v of _ldfQuery
-		ldfQuery.offset += ldfQuery.limit
-		return @_canonical ldfQuery
+	_next : (_ldf) ->
+		ldf = {}
+		ldf[k] = v for k,v of _ldf
+		ldf.offset += ldf.limit
+		return @_canonical ldf
 
-	_previous : (_ldfQuery) ->
-		return null if _ldfQuery.offset == 0
-		ldfQuery = {}
-		ldfQuery[k] = v for k,v of _ldfQuery
-		ldfQuery.offset -= ldfQuery.limit
-		ldfQuery.offset = Math.max 0, ldfQuery.offset
-		return @_canonical ldfQuery
+	_previous : (_ldf) ->
+		return null if _ldf.offset == 0
+		ldf = {}
+		ldf[k] = v for k,v of _ldf
+		ldf.offset -= ldf.limit
+		ldf.offset = Math.max 0, ldf.offset
+		return @_canonical ldf
 
-	_canonical : (ldfQuery) ->
-		ret = "#{@baseURI}/#{@ldfEndpoint}"
+	_canonical : (ldf) ->
+		ret = "#{@baseURI}#{@ldfEndpoint}"
 		qs = []
-		qs.push "#{k}=#{encodeURIComponent v}" for k,v of ldfQuery
+		qs.push "#{k}=#{encodeURIComponent v}" for k,v of ldf
 		return "#{ret}?#{qs.join '&'}"
 
 	#==================================================
@@ -256,15 +280,12 @@ module.exports = class LdfHandlers extends Base
 					predicate: RDF_TYPE
 					object: @uriForClass(model.modelName)
 				}
-				metadataCallback {totalCount}
+				metadataCallback {totalCount: 1}
 				doneLDF()
 		else if ldf.object
 			@_tokenizeClassURI ldf.object, (err, model) =>
 				return doneLDF err if err
-				@_queryModelRdfType model, tripleStream, metadataCallback, (err, totalCount) ->
-					return doneLDF err if err
-					metadataCallback {totalCount}
-					doneLDF()
+				@_queryModelRdfType model, tripleStream, metadataCallback, doneLDF
 		else
 			totalCount = 0
 			asyncCallback = (metadata) -> totalCount += metadata.totalCount
@@ -285,6 +306,7 @@ module.exports = class LdfHandlers extends Base
 		mgQueryDoc = {}
 		mgProjection = {_id:true}
 		model.count (err, totalCount) =>
+			return doneLDF err if err
 			metadataCallback {totalCount}
 			model.find mgQueryDoc, mgProjection, (err, things) =>
 				return doneLDF err if err
@@ -401,5 +423,9 @@ module.exports = class LdfHandlers extends Base
 		val = Utils.literalValue(str)
 		return val if val
 		return str
+
+	_msPassed : (ts) ->
+		passed = process.hrtime ts
+		return parseInt((passed[0]*1000) + (passed[1]/1000000))
 
 

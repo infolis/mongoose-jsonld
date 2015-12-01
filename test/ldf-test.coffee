@@ -43,7 +43,9 @@ data2 = data1 =
 	algorithm: 'io.github.infolis.algorithm.Indexer'
 doc1 = doc2 = null
 
-DEBUG_METADATA_CALLBACK = (metadata) -> log.debug "Metadata:", metadata
+DEBUG_METADATA_CALLBACK = (metadata) ->
+	log.debug "Metadata:", metadata
+	throw new Error("No totalCount!") if typeof metadata.totalCount isnt 'number' or Number.isNaN(metadata.totalCount)
 
 
 class LdfTests extends BaseTest
