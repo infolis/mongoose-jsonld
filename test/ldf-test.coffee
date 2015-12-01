@@ -27,6 +27,7 @@ ALL_TESTS = [
 	'_handle_rdftype_spo'
 	'_handle_rdftype_p'
 	'_handle_rdftype_po'
+	'_handle_rdftype_so'
 	'_handle_rdftype_o'
 
 	# NOT IMPLEMENTED
@@ -46,6 +47,7 @@ doc1 = doc2 = null
 DEBUG_METADATA_CALLBACK = (metadata) ->
 	log.debug "Metadata:", metadata
 	throw new Error("No totalCount!") if typeof metadata.totalCount isnt 'number' or Number.isNaN(metadata.totalCount)
+	throw new Error("No nrFound!") if typeof metadata.nrFound isnt 'number' or Number.isNaN(metadata.nrFound) or metadata.nrFound <= 0
 
 
 class LdfTests extends BaseTest
@@ -100,9 +102,12 @@ class LdfTests extends BaseTest
 			return cb()
 
 	_handle_rdftype_p : (t, cb) ->
-		query = subject: doc1.uri(), predicate: NS.RDF_TYPE
-		@_test '_handle_rdftype_p', query, DEBUG_METADATA_CALLBACK, (err, tripleStream) =>
-			t.equals tripleStream.length, 1
+		query = predicate: NS.RDF_TYPE
+		metadataCallback = ({totalCount, nrFound}) ->
+			t.equals totalCount, NR_EXECUTIONS
+			t.equals nrFound, 10
+		@_test '_handle_rdftype [p]', query, metadataCallback, (err, tripleStream) =>
+			t.equals tripleStream.length, 10
 			t.equals tripleStream[0].object, NS.URI_EXECUTION
 			return cb()
 
@@ -114,9 +119,18 @@ class LdfTests extends BaseTest
 			t.equals NS.URI_EXECUTION, tripleStream[0].object
 			return cb()
 
+	_handle_rdftype_so : (t, cb) ->
+		query = subject: doc1.uri(), object: NS.URI_EXECUTION
+		@_test '_handle_rdftype [so]', query, DEBUG_METADATA_CALLBACK, (err, tripleStream) ->
+			t.equals tripleStream.length, 1
+			t.equals tripleStream[0].subject, doc1.uri()
+			t.equals tripleStream[0].predicate, NS.RDF_TYPE
+			t.equals tripleStream[0].object, NS.URI_EXECUTION
+			return cb()
+
 	_handle_rdftype_po : (t, cb) ->
 		query = predicate: NS.RDF_TYPE, object: NS.URI_EXECUTION
-		@_test '_handle_rdftype_po', query, DEBUG_METADATA_CALLBACK, (err, tripleStream) ->
+		@_test '_handle_rdftype [po]', query, DEBUG_METADATA_CALLBACK, (err, tripleStream) ->
 			t.equals tripleStream[0].object, NS.URI_EXECUTION
 			return cb()
 
@@ -137,7 +151,9 @@ class LdfTests extends BaseTest
 
 	_handle_sp : (t, cb) ->
 		query = subject: doc1.uri(), predicate: NS.URI_ALGORITHM
-		metadataCallback = ({totalCount}) -> t.equals 1, totalCount
+		metadataCallback = ({totalCount, nrFound}) ->
+			t.equals 1, totalCount
+			t.equals 1, nrFound
 		@_test '_handle_sp', query, metadataCallback, (err, tripleStream) ->
 			t.equals tripleStream.length, 1
 			t.equals tripleStream[0].object, "\"#{doc1.algorithm}\"^^#{NS.XSD}string"
@@ -145,7 +161,9 @@ class LdfTests extends BaseTest
 
 	_handle_spo : (t, cb) ->
 		query = subject: doc1.uri(), predicate: NS.URI_ALGORITHM, object: doc1.algorithm
-		metadataCallback = ({totalCount}) -> t.equals 1, totalCount
+		metadataCallback = ({totalCount, nrFound}) ->
+			t.equals 1, totalCount
+			t.equals 1, nrFound
 		@_test '_handle_spo', query, metadataCallback, (err, tripleStream) ->
 			t.equals tripleStream[0].subject, doc1.uri()
 			t.equals tripleStream[0].predicate, NS.URI_ALGORITHM
@@ -154,13 +172,17 @@ class LdfTests extends BaseTest
 
 	_handle_p : (t, cb) ->
 		query = predicate: NS.URI_ALGORITHM
-		metadataCallback = ({totalCount}) -> t.equals NR_EXECUTIONS, totalCount
+		metadataCallback = ({totalCount, nrFound}) ->
+			t.ok totalCount > 10
+			t.equals nrFound, 10
 		@_test '_handle_p', query, metadataCallback, (err, tripleStream) ->
 			return cb()
 
 	_handle_po : (t, cb) ->
 		query = predicate: NS.URI_ALGORITHM, object: doc1.algorithm
-		metadataCallback = ({totalCount}) -> t.equals NR_EXECUTIONS, totalCount
+		metadataCallback = ({totalCount, nrFound}) ->
+			t.equals totalCount, NR_EXECUTIONS
+			t.equals nrFound, 10
 		@_test '_handle_po', query, metadataCallback, (err, tripleStream) ->
 			t.equals tripleStream[0].predicate, NS.URI_ALGORITHM
 			t.equals tripleStream[0].object, "\"#{doc1.algorithm}\"^^#{NS.XSD}string"
@@ -182,7 +204,9 @@ class LdfTests extends BaseTest
 
 	_handle_none : (t, cb) ->
 		query = {}
-		metadataCallback = ({totalCount}) -> t.ok totalCount > 1
+		metadataCallback = ({totalCount, nrFound}) ->
+			t.equals totalCount, NR_EXECUTIONS
+			t.equals nrFound, 10
 		# metadataCallback = DEBUG_METADATA_CALLBACK
 		@_test '_handle_none', query, metadataCallback, (err, tripleStream) ->
 			t.ok tripleStream.length > 1

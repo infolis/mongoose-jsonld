@@ -6,10 +6,11 @@ Base    = require '../base'
 log = require('../log')(module, level: 'silly')
 
 HYDRA    = "http://www.w3.org/ns/hydra/core#"
-ENDS     = 'http://labs.mondeca.com/vocab/endpointStatus#'
+ENDS     = 'http://labs.mondeca.com/vocab/endpointStatus/#'
 VOID     = "http://rdfs.org/ns/void#"
 RDF      = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
 XSD      = 'http://www.w3.org/2001/XMLSchema#'
+SEARCH   = 'http://sindice.com/vocab/search#'
 RDF_TYPE = RDF + "type"
 
 DEFAULT_LIMIT = 10
@@ -25,7 +26,7 @@ module.exports = class LdfHandlers extends Base
 	inject: (app, done) ->
 		app.get @ldfEndpoint, (req, res, next) =>
 			ldf = req.query
-			ldf.controls  = false
+			ldf.controls  = true
 			ldf.limit     = parseInt(req.query.limit) or DEFAULT_LIMIT
 			ldf.offset    = parseInt(req.query.offset) or 0
 			ldf.subject   = req.query.subject
@@ -41,9 +42,9 @@ module.exports = class LdfHandlers extends Base
 				totalCount += metadata.totalCount
 
 			if ldf.controls
-				handler = @handleLDFQuery
-			else
 				handler = @handleLDFQueryWithControls
+			else
+				handler = @handleLDFQuery
 			handler.call @, ldf, tripleStream, metadataCallback, (err) =>
 				acceptable = Accepts(req).types()
 				if acceptable.length == 0 or 'application/n3+json' in acceptable
@@ -114,11 +115,14 @@ module.exports = class LdfHandlers extends Base
 	handleLDFQueryWithControls : (ldf, tripleStream, metadataCallback, doneLDF) ->
 		metadata = {
 			totalCount: 0
+			nrFound: 0
 		}
 		_start = process.hrtime()
 		innerMetadataCallback = (metadataArg) ->
 			if 'totalCount' of metadataArg
 				metadata.totalCount += metadataArg.totalCount
+			if 'nrFound' of metadataArg
+				metadata.nrFound += metadataArg.nrFound
 			metadataCallback metadata
 			log.debug("There are #{metadata.totalCount} triples available")
 		@handleLDFQuery ldf, tripleStream, innerMetadataCallback, (err) =>
@@ -145,10 +149,13 @@ module.exports = class LdfHandlers extends Base
 				void: VOID
 				rdf: RDF
 				ends: ENDS
+				search: SEARCH
 			'@id': "#{@baseURI}#{@apiPrefix}/ldf"
-			'void:documents': metadata.totalCount
-			'ends:statusResponseTime': metadata.queryTime
-			'void:subset': '@id': @_canonical(ldf)
+			'void:subset':
+				'@id': @_canonical(ldf)
+				'void:documents': metadata.totalCount
+				'search:itemsPerPage': metadata.nrFound
+				'ends:statusResponseTime': metadata.queryTime
 			# 'hydra:search':
 			#     'hydra:template': "#{@baseURI}#{@apiPrefix}/lds{?subject,predicate,object}"
 			#     'hydra:mapping': [
@@ -163,21 +170,22 @@ module.exports = class LdfHandlers extends Base
 			#             'hydra:property': '@id': RDF + 'object'
 			#         }
 			#     ]
-		next = @_next(ldf)
-		controls['hydra:next'] = {'@id':next} if next
-		previous = @_previous(ldf)
-		controls['hydra:previous'] = {'@id':previous} if previous
+		next = @_next(ldf, metadata)
+		controls['void:subset']['hydra:next'] = {'@id':next} if next
+		previous = @_previous(ldf, metadata)
+		controls['void:subset']['hydra:previous'] = {'@id':previous} if previous
 		log.silly 'Hypermedia controls', controls
 		return @_pushTriples controls, tripleStream, {}, cb
 
-	_next : (_ldf) ->
+	_next : (_ldf, metadata) ->
+		return null if metadata.nrFound < _ldf.offset + _ldf.limit
 		ldf = {}
 		ldf[k] = v for k,v of _ldf
 		ldf.offset += ldf.limit
 		return @_canonical ldf
 
-	_previous : (_ldf) ->
-		return null if _ldf.offset == 0
+	_previous : (_ldf, metadata) ->
+		return null if _ldf.offset <= 0
 		ldf = {}
 		ldf[k] = v for k,v of _ldf
 		ldf.offset -= ldf.limit
@@ -199,8 +207,13 @@ module.exports = class LdfHandlers extends Base
 	# <a name="_handle_p"/>
 	# <a name="_handle_po"/>
 	_handle_p_po : (ldf, tripleStream, metadataCallback, doneLDF) ->
-		allModelCount = 0
-		innerMetadataCallback = ({totalCount}) -> allModelCount += totalCount
+		metadata = {
+			totalCount: 0
+			nrFound: 0
+		}
+		innerMetadataCallback = ({totalCount, nrFound}) ->
+			metadata.totalCount += totalCount or 0
+			metadata.nrFound += nrFound or 0
 		@_uriToName ldf.predicate, (err, propName) =>
 			return doneLDF err if err
 			log.debug "propName: #{propName}"
@@ -215,40 +228,39 @@ module.exports = class LdfHandlers extends Base
 				if err
 					log.error err
 					return doneLDF err
-				metadataCallback {totalCount: allModelCount}
+				metadataCallback metadata
 				doneLDF()
 
 	# <a name="_handle_none"/>
 	# <a name="_handle_o"/>
 	_handle_none_o : (ldf, tripleStream, metadataCallback, doneLDF) ->
-		totalCount = 0
-		asyncCallback = (metadata) -> totalCount += metadata.totalCount
 		mgQueryDoc = {}
 		mgProjection = {_id:true}
 		nrFound = 0
+		# TODO here you are ethan
+		allModelCount = 0
 		@_tokenizeClassURI ldf.object, (err) =>
 			unless err
 				return @_handle_rdftype ldf, tripleStream, metadataCallback, doneLDF
 			Async.eachSeries @models, (model, doneModel) =>
-				if nrFound > ldf.limit
-					return doneModel()
-				model.count (err, totalCount) =>
-					log.silly("Total count for #{model.modelName}", totalCount)
+				model.count (err, perModelCount) =>
+					log.debug("Total count for #{model.modelName}: #{perModelCount}", mgQueryDoc)
+					allModelCount += perModelCount
+					if nrFound > ldf.limit
+						return doneModel()
 					return doneModel err if err
-					asyncCallback {totalCount}
 					query = model.where(mgQueryDoc, mgProjection)
 					query.limit(ldf.limit)
 					query.exec (err, things) =>
 						return doneModel err if err
+						nrFound += things.length
 						Async.each things, (thing, doneThing) =>
-							@_pushTriples thing.jsonldABox(), tripleStream, ldf, (err, tripleCount) =>
-								nrFound += tripleCount
-								doneThing()
+							@_pushTriples thing.jsonldABox(), tripleStream, ldf, doneThing
 						, doneModel
 			, (err) ->
 				log.error err if err
 				return doneLDF err if err
-				metadataCallback {totalCount}
+				metadataCallback {totalCount: allModelCount, nrFound: nrFound}
 				doneLDF()
 
 	# <a id='_handle_s'/>
@@ -266,9 +278,9 @@ module.exports = class LdfHandlers extends Base
 						mongoQuery[propName] = @_typeifyString(ldf.object)
 					else
 						mongoQuery[propName] = {$exists:true}
-					return @_executeModelQuery ldf, model, mongoQuery, tripleStream, metadataCallback, doneLDF
+					return @_executeModelQueryById ldf, model, mongoQuery, tripleStream, metadataCallback, doneLDF
 			else
-				return @_executeModelQuery ldf, model, mongoQuery, tripleStream, metadataCallback, doneLDF
+				return @_executeModelQueryById ldf, model, mongoQuery, tripleStream, metadataCallback, doneLDF
 
 	# <a id='_handle_rdftype'/>
 	_handle_rdftype : (ldf, tripleStream, metadataCallback, doneLDF) ->
@@ -280,20 +292,25 @@ module.exports = class LdfHandlers extends Base
 					predicate: RDF_TYPE
 					object: @uriForClass(model.modelName)
 				}
-				metadataCallback {totalCount: 1}
+				metadataCallback {totalCount: 1, nrFound: 1}
 				doneLDF()
 		else if ldf.object
 			@_tokenizeClassURI ldf.object, (err, model) =>
 				return doneLDF err if err
-				@_queryModelRdfType model, tripleStream, metadataCallback, doneLDF
+				@_queryModelRdfType model, ldf, tripleStream, metadataCallback, doneLDF
 		else
-			totalCount = 0
-			asyncCallback = (metadata) -> totalCount += metadata.totalCount
+			metadata = {
+				totalCount: 0
+				nrFound: 0
+			}
+			asyncCallback = (metadataArg) ->
+				metadata.totalCount += metadataArg.totalCount
+				metadata.nrFound += metadataArg.nrFound
 			Async.each @models, (model, doneModel) =>
-				@_queryModelRdfType model, tripleStream, asyncCallback, doneModel
+				@_queryModelRdfType model, ldf, tripleStream, asyncCallback, doneModel
 			, (err) ->
 				return doneLDF err if err
-				metadataCallback {totalCount}
+				metadataCallback metadata
 				doneLDF()
 
 	#==================================================
@@ -302,13 +319,15 @@ module.exports = class LdfHandlers extends Base
 	#
 	#==================================================
 
-	_queryModelRdfType:	(model, tripleStream, metadataCallback, doneLDF) ->
+	_queryModelRdfType:	(model, ldf, tripleStream, metadataCallback, doneLDF) ->
 		mgQueryDoc = {}
 		mgProjection = {_id:true}
 		model.count (err, totalCount) =>
 			return doneLDF err if err
-			metadataCallback {totalCount}
-			model.find mgQueryDoc, mgProjection, (err, things) =>
+			query = model.find mgQueryDoc, mgProjection
+			query.skip(ldf.offset)
+			query.limit(ldf.limit)
+			query.exec (err, things) =>
 				return doneLDF err if err
 				for thing in things
 					tripleStream.push {
@@ -316,16 +335,19 @@ module.exports = class LdfHandlers extends Base
 						predicate: RDF_TYPE
 						object: @uriForClass(model.modelName)
 					}
+				metadataCallback {totalCount, nrFound: things.length}
 				doneLDF()
 
-	_executeModelQuery : (ldf, model, mongoQuery, tripleStream, metadataCallback, doneLDF) ->
+	_executeModelQueryById : (ldf, model, mongoQuery, tripleStream, metadataCallback, doneLDF) ->
 		log.silly("Mongo query", mongoQuery)
 		query = model.where mongoQuery
 		query.findOne (err, thing) =>
 			return doneLDF err if err
+			if not thing
+				return metadataCallback(totalCount: 0, nrFound: 0)
 			@_pushTriples thing.jsonldABox(), tripleStream, ldf, (err, totalCount) ->
 				return doneLDF err if err
-				metadataCallback {totalCount}
+				metadataCallback {totalCount: 1, nrFound: 1}
 				doneLDF()
 
 	_queryAllModels :  (ldf, tripleStream, metadataCallback, mgQueryDoc, mgProjection, doneLDF) ->
@@ -352,10 +374,9 @@ module.exports = class LdfHandlers extends Base
 				query.limit(ldf.limit)
 				query.exec (err, things) =>
 					return doneModel(err) if err
-					log.silly "Things #{things.length}"
-					Async.eachSeries things, thingHandler, (err) ->
-						return doneModel(err) if err
-						return doneModel()
+					log.debug "Number of Things #{things.length}"
+					metadataCallback {nrFound: things.length}
+					Async.eachSeries things, thingHandler, doneModel
 		Async.eachSeries @models, modelHandler, doneLDF
 
 	#==================================================
@@ -377,9 +398,9 @@ module.exports = class LdfHandlers extends Base
 						if pos is 'object'
 							skip = not Utils.literalValueMatch(triple[pos], filter[pos])
 						else
-							skip = triple[pos] isnt filter[pos]
+							skip = not Utils.lastUriSegmentMatch(triple[pos], filter[pos])
 						if skip
-							log.silly "Skip because '#{pos}': #{triple[pos]} isnt #{filter[pos]}"
+							log.debug "Skip because '#{pos}': #{triple[pos]} isnt #{filter[pos]}"
 							break
 				continue if skip
 				tripleStream.push triple

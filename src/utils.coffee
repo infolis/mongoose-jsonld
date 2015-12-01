@@ -23,6 +23,8 @@ module.exports = class Utils
 	# Everything after the last '/' slash or the '#' fragment separator
 	#
 	@lastUriSegment : (uri) ->
+		if uri.indexOf('http') isnt 0
+			return uri.substr(uri.indexOf(':') + 1)
 		if uri.indexOf('#') > -1
 			return uri.substr(uri.lastIndexOf('#') + 1)
 		else if uri.indexOf('/') > -1
