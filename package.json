@@ -1,6 +1,6 @@
 {
   "name": "mongoose-jsonld",
-  "version": "0.1.36",
+  "version": "0.2.0",
   "description": "Add JSON-LD context to a Mongoose schema",
   "main": "lib/index.js",
   "scripts": {
@@ -37,12 +37,12 @@
     "infolis-logging": "^0.0.2",
     "is-number": "^2.0.2",
     "jsonld-common-contexts": "0.0.12",
-    "jsonld-rapper": "^0.2.0",
+    "jsonld-rapper": "^0.2.1",
     "merge": "^1.2.0",
     "mongoose": "^4.1.10",
     "n3": "^0.4.5",
     "node-uuid": "^1.4.3",
-    "tson": "0.0.5",
+    "tson": "0.0.9",
     "yamljs": "^0.2.4"
   }
 }
