@@ -3,13 +3,13 @@ CommonContexts = require 'jsonld-common-contexts'
 JsonldRapper   = require 'jsonld-rapper'
 ExpressJSONLD  = require 'express-jsonld'
 Merge          = require 'merge'
-EventEmitter = require('events').EventEmitter
+EventEmitter   = require('events').EventEmitter
 
 Validators   = require './validators'
 TypeMap      = require './typemap'
 Utils        = require './utils'
 
-module.exports  = class MongooseJsonldBase
+module.exports  = class MongooseJsonldBase extends EventEmitter
 
 	constructor: (opts) ->
 		opts or= {}
@@ -17,13 +17,7 @@ module.exports  = class MongooseJsonldBase
 			throw "Must pass Mongoose DB Connection as 'mongoose'"
 		@mongoose = opts.mongoose
 		@mongoose.on 'error', (err) ->
-			console.log 'FOFOFOFOFOFOFOF'
-			console.log 'FOFOFOFOFOFOFOF'
-			console.log 'FOFOFOFOFOFOFOF'
-			console.log 'FOFOFOFOFOFOFOF'
-			console.log 'FOFOFOFOFOFOFOF'
-			console.log 'FOFOFOFOFOFOFOF'
-			throw  err
+			throw err
 		#
 		# Populate this with the arguments passed to constructor
 		#
@@ -48,6 +42,9 @@ module.exports  = class MongooseJsonldBase
 			return "#{@baseURI}#{@schemaPrefix}/#{short}"
 		@uriForInstance or= (doc) ->
 			return "#{@baseURI}#{@apiPrefix}/#{Utils.lcfirst doc.constructor.modelName}/#{doc._id}"
+
+	setUp: ->
+		@emit 'setUp'
 
 	serialize : (doc, opts, cb) ->
 		if typeof opts == 'function' then [cb, opts] = [opts, {}]

@@ -53,10 +53,15 @@ module.exports = class Schemo extends Base
 		@checkForConflicts()
 		@handlers = {}
 		Async.eachSeries ['schema', 'restful', 'swagger', 'ldf'], (m, loaded) =>
-			mod = require "./handlers/#{m}"
 			log.debug "Registering '#{m}' handler"
-			@handlers[m] = new mod(@)
-			loaded()
+			@handlers[m] = new(require "./handlers/#{m}")(@)
+			@handlers[m].once 'setUp', (err) ->
+				log.info "Handler #{m} is go", err or ''
+				return loaded()
+			@handlers[m].setUp()
+		, (err) =>
+			@emit 'ready', err
+
 
 
 	#
@@ -84,8 +89,7 @@ module.exports = class Schemo extends Base
 	addClass: (className, classDef) ->
 		@schemas[className] = schema = @factory.createSchema(className, classDef, {strict: true})
 		@models[className] = model = @factory.createModel(className, schema)
-		model.ensureIndexes (err) ->
-			# return log.error err if err
+		model.ensureIndexes()
 		@onto.classes[className] = model.jsonldTBox()
 
 	jsonldTBox : (opts, cb) ->

@@ -67,29 +67,6 @@ module.exports = class Factory extends Base
 		#         delete ret[path] unless path in predicates_to_keep
 		return ret
 
-	# _createDocumentFromObject : (model, obj) ->
-	#     for schemaPathName of obj
-	#         schemaPathDef = model.schema.paths[schemaPathName]
-	#         schemaPathOptions = schemaPathDef.options
-	#         Utils.dumplog schemaPathOptions
-	#         if 'refOne' of schemaPathOptions
-	#             obj[schemaPathName] = Utils.lastUriSegment(obj[schemaPathName])
-	#         else if 'refMany' of schemaPathOptions
-	#             swap = []
-	#             for uri of obj[schemaPathName]
-	#                 swap.push Utils.lastUriSegment uri
-	#             obj[schemaPathName] = swap
-	#     return new model(obj)
-
-	# # XXXX TODO do this by hand
-	# _findOneAndPopulate : (model, searchDoc, cb) ->
-	#     builder = model.findOne(searchDoc)
-	#     for schemaPathName, schemaPathDef of model.schema.paths
-	#         schemaPathType = schemaPathDef.options
-	#         if Utils.isJoinSingle(schemaPathType) or Utils.isJoinMulti(schemaPathType)
-	#             builder.populate(schemaPathName)
-	#     return builder.exec cb
-
 	_listDescription: (model, opts) ->
 		onto = []
 		# Class def
@@ -258,7 +235,7 @@ module.exports = class Factory extends Base
 					when @typeMap.Date
 						pc['rdfs:range'] = {'@id': 'xsd:dateTime'}
 					else
-						log.error "Unknown primitive type: #{propDef.type}"
+						log.error "Unknown primitive type: #{propDef.type} in ", propDef
 			# schema:domainIncludes (rdfs:domain)
 			pc['schema:domainIncludes'] or= []
 			pc['schema:domainIncludes'].push {'@id': classUri}
@@ -278,14 +255,14 @@ module.exports = class Factory extends Base
 		indexProp = {}
 		for k in model.properFields()
 			if schema.paths[k].options.index
-				log.debug "Indexing #{name}##{k}"
+				log.silly "Indexing #{name}##{k}"
 				indexProp[k] = 1
 		schema.index(indexProp)
 		# Log errors
 		model.on 'error', (err) ->
 			if err.message.indexOf('sockets closed') == -1
-				log.error "THIS", err
+				log.error "Non-Socket-Close error", err
 		model.on 'index', (err) ->
 			# return log.error err if err
-			return log.silly "Index for '#{name}' built successfully"
+			return log.debug "Index for '#{name}' built successfully"
 		return model

@@ -5,10 +5,6 @@ log = require('../log')(module)
 
 module.exports = class RestfulHandler extends Base
 
-	constructor: ->
-		super
-
-
 	inject: (app, done) ->
 		nextMiddleware = @_conneg.bind(@)
 		self = this
