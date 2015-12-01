@@ -38,19 +38,21 @@ class LdfTests extends BaseTest
 		)
 		doc1 = new @schemo.models.Execution(data1)
 		doc2 = new @schemo.models.Execution(data2)
-		doc1.save (err) =>
-			log.error err if err
-			log.logstop('save')
-			log.start('count')
-			@schemo.models.Execution.count (err,nr) ->
-				log.logstop('count')
-				NR_EXECUTIONS = nr
-				log.info "PREPARED"
-				cb()
+		@schemo.on 'ready', =>
+			log.start('save')
+			doc1.save (err) =>
+				log.error err if err
+				log.logstop('save')
+				log.start('count')
+				@schemo.models.Execution.count (err,nr) ->
+					log.logstop('count')
+					NR_EXECUTIONS = nr
+					log.info "PREPARED"
+					cb()
 
 	run : (cb) -> 
 		tests = [
-			# '_handle_s'
+			'_handle_s'
 			# '_handle_rdftype_sp'
 			# '_handle_rdftype_spo'
 			# '_handle_rdftype_p'
@@ -133,7 +135,6 @@ class LdfTests extends BaseTest
 
 test 'LDF Triple Patterns', (t) ->
 	log.start('ldf')
-	log.start('save')
 	ldfTests = new LdfTests(t)
 	ldfTests.run ->
 		log.debug "Finished LDF Tests"
