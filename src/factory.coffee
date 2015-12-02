@@ -208,8 +208,9 @@ module.exports = class Factory extends Base
 			enumValues = propDef.enum
 			if enumValues and enumValues.length
 				pc['rdfs:range'] = {
-					'owl:oneOf': enumValues
-					'@type': 'xsd:string'
+					'owl:oneOf':
+						'@list': enumValues
+					'@type': 'rdfs:Datatype'
 				}
 			# XXX TODO
 			# handle dbrefs
