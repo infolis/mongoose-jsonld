@@ -36,4 +36,4 @@ module.exports = class SchemaHandlers extends Base
 						app.get path, (req, res, next) =>
 							req.jsonld = graph
 							@expressJsonldMiddleware(req, res, next)
-		done()
+				done()
