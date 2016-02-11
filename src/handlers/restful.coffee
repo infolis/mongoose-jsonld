@@ -132,14 +132,16 @@ module.exports = class RestfulHandler extends Base
 			res.status 404
 			return next()
 		delete input._id
-		model.update {_id: id}, input, {upsert: true}, (err, nrUpdated) ->
+		model.findOne {_id: id}, (err, doc) ->
 			if err
 				res.status 400
 				return next new Error(err)
-			if nrUpdated == 0
-				res.status 400
-				return next new Error("No updates were made?!")
-			else
+			doc or= new model(input)
+			doc.set(k,v) for k,v of input
+			doc.save (err) ->
+				if err
+					res.status 400
+					return next new Error(err)
 				res.status 201
 				res.end()
 
