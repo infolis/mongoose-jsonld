@@ -25,12 +25,8 @@ dump = (stuff) ->
 
 PublicationModel = schemo.models.Publication
 
-myConsoleLog = (data) ->
-	console.log Util.inspect data, { colors: true, depth: 3 }
-
-# console.log YAML.dump schemo.handlers.swagger.getSwagger({}), {skipInvalid: true}
-
 test 'swagger', (t) ->
-	swagger = schemo.handlers.swagger.getSwagger({})
-	t.ok swagger, 'Swagger produced'
-	t.end()
+	schemo.once 'ready', ->
+		swagger = schemo.handlers.swagger.getSwagger({})
+		t.ok swagger, 'Swagger produced'
+		t.end()

@@ -4,7 +4,7 @@ TSON     = require 'tson'
 Schemo   = require '../src'
 test     = require 'tapes'
 
-log = require('infolis-logging')(module)
+log = require('../src/log')(module)
 
 {NS, BaseTest} = require('./base-test')
 
@@ -65,13 +65,13 @@ class LdfTests extends BaseTest
 		doc1 = new @schemo.models.Execution(data1)
 		doc2 = new @schemo.models.Execution(data2)
 		@schemo.on 'ready', =>
-			log.start('save')
+			log.profile('save')
 			doc1.save (err) =>
 				log.error err if err
-				log.logstop('save')
-				log.start('count')
+				log.profile('save')
+				log.profile('count')
 				@schemo.models.Execution.count (err,nr) ->
-					log.logstop('count')
+					log.profile('count')
 					NR_EXECUTIONS = nr
 					log.info "PREPARED"
 					cb()
@@ -88,9 +88,9 @@ class LdfTests extends BaseTest
 
 	_test : (title, query, metadataCallback, cb) ->
 		tripleStream = []
-		log.start title
+		log.profile title
 		@schemo.handlers.ldf.handleLDFQuery query, tripleStream, metadataCallback, (err) ->
-			log.logstop title
+			log.profile title
 			return cb err if err
 			return cb null, tripleStream
 
@@ -213,7 +213,7 @@ class LdfTests extends BaseTest
 			return cb()
 
 test 'LDF Triple Patterns', (t) ->
-	log.start('ldf')
+	log.profile('ldf')
 	ldfTests = new LdfTests(t)
 	ldfTests.run ->
 		log.debug "Finished LDF Tests"

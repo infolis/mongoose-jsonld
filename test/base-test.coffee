@@ -4,7 +4,7 @@ TSON     = require 'tson'
 Schemo   = require '../src'
 test     = require 'tapes'
 
-log = require('infolis-logging')(module)
+log = require('../src/log')(module)
 
 NS = {}
 NS.XSD           = 'http://www.w3.org/2001/XMLSchema#'

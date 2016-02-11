@@ -1,3 +1,3 @@
-InfolisLogging = require 'infolis-logging'
+EasyLog = require 'easylog'
 module.exports = (callingModule) ->
-	InfolisLogging(callingModule)
+	EasyLog(callingModule)

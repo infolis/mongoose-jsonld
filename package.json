@@ -1,6 +1,6 @@
 {
   "name": "mongoose-jsonld",
-  "version": "0.2.0",
+  "version": "0.2.2",
   "description": "Add JSON-LD context to a Mongoose schema",
   "main": "lib/index.js",
   "scripts": {
@@ -33,11 +33,11 @@
   "dependencies": {
     "accepts": "^1.3.0",
     "async": "^1.5.0",
-    "express-jsonld": "0.0.16",
-    "infolis-logging": "^0.0.2",
+    "easylog": "0.0.10",
+    "express-jsonld": "0.0.18",
     "is-number": "^2.0.2",
     "jsonld-common-contexts": "0.0.12",
-    "jsonld-rapper": "^0.2.1",
+    "jsonld-rapper": "^0.2.3",
     "merge": "^1.2.0",
     "mongoose": "^4.1.10",
     "n3": "^0.4.5",
