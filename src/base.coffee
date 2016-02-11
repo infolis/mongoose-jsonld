@@ -28,8 +28,9 @@ module.exports  = class MongooseJsonldBase extends EventEmitter
 		opts.expandContexts or= ['prefix.cc']
 		@curie        or= CommonContexts.withContext(opts.expandContexts)
 		@jsonldRapper or= new JsonldRapper(
-			# baseURI: "#{@baseURI}#{@schemaPrefix}/"
-			baseURI: "(ツ)"
+			baseURI: "#{@baseURI}#{@schemaPrefix}/"
+			# baseURI: "(ツ)"
+			# baseURI: "(ツ)"
 			curie: @curie
 		)
 		@baseURI      or= 'http://EXAMPLE.ORG'
