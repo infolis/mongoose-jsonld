@@ -37,7 +37,7 @@ module.exports = class RestfulHandler extends Base
 							(req, res, next) -> handle.apply(self, [model, req, res, next])
 							(req, res, next) -> nextMiddleware(req, res, next)
 						)
-		done()
+		done() if done
 
 	_GET_Resource : (model, req, res, next) ->
 		id = @_castId(model, res, req.params.id)
