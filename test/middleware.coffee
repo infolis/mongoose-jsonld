@@ -59,7 +59,14 @@ test 'CRUD', (t) ->
 						t.ok res.text.indexOf('@prefix') > -1, 'Converted to Turtle'
 						t.ok res.headers['content-type'].indexOf('text/turtle') > -1, 'Correct content-type'
 						t.equals res.statusCode, 200, 'GET /:id 200'
-						cb()
+						t.comment("Waiting a second to test timestamps")
+						setTimeout ->
+							request(app)
+							.get "/api/v1/publication/#{id}"
+							.end (err, res) ->
+								t.equals res.body.resource_modified, res.body.resource_created
+								cb()
+						, 1000
 
 			(cb) ->
 				request(app)
@@ -78,6 +85,7 @@ test 'CRUD', (t) ->
 					.get "/api/v1/publication/#{id}"
 					.end (err, res) ->
 						t.equals res.body.title, 'Bars and Quuxes', 'Title updated'
+						t.notEquals res.body.resource_modified, res.body.resource_created, 'time diverged'
 						t.equals res.statusCode, 200, 'GET /:id 200'
 						cb()
 			

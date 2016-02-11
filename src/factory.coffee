@@ -1,5 +1,7 @@
-Merge    = require 'merge'
-Uuid     = require 'node-uuid'
+Merge           = require 'merge'
+Uuid            = require 'node-uuid'
+TimestampPlugin = require 'mongoose-timestamp'
+
 Utils = require './utils'
 Base  = require './base'
 
@@ -165,6 +167,10 @@ module.exports = class Factory extends Base
 		mongooseOptions['@context'] = schemaContext
 		schemaContext['rdf:type'] or= [{'@id': 'owl:Thing'}]
 		schema = new(@mongoose.base.constructor)().Schema({}, mongooseOptions)
+		schema.plugin TimestampPlugin, {
+			createdAt: 'resource_created'
+			updatedAt: 'resource_modified'
+		}
 		schema.plugin(@createPlugin(schema))
 		# JSON-LD info about properties
 		for propName, propDef of schemaDef
