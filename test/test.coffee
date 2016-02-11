@@ -120,21 +120,21 @@ test 'Validate', (t) ->
 		t.equals err.errors.type.kind, 'enum', "because value isn't from the enum"
 		t.end()
 
-test 'filter_predicate', (t) ->
-	_connect()
-	{Publication} = schemo.models
-	pub = new Publication(title:'foo', type:'book')
-	pub.save (err) ->
-		Async.series [
-			(cb) -> pub.jsonldABox {filter_predicate:['title']}, (err, data) ->
-				t.notOk data.type, 'type should be filtered out'
-				cb()
-			(cb) -> pub.jsonldABox {filter_predicate:['http://foo/title']}, (err, data) ->
-				t.notOk data.type, 'here as well'
-				cb()
-		], () ->
-			_disconnect()
-			t.end()
+# test.only 'filter_predicate', (t) ->
+#     _connect()
+#     {Publication} = schemo.models
+#     pub = new Publication(title:'foo', type:'book')
+#     pub.save (err) ->
+#         Async.series [
+#             (cb) -> pub.jsonldABox {filter_predicate:['title']}, (err, data) ->
+#                 t.notOk data.type, 'type should be filtered out'
+#                 cb()
+#             (cb) -> pub.jsonldABox {filter_predicate:['http://foo/title']}, (err, data) ->
+#                 t.notOk data.type, 'here as well'
+#                 cb()
+#         ], () ->
+#             _disconnect()
+#             t.end()
 
 ignore '_createDocumentFromObject', (t) ->
 	_connect()
@@ -207,8 +207,9 @@ test 'convert to turtle', (t) ->
 		_disconnect()
 		t.end()
 
-test.only 'properFields', (t) ->
+test 'properFields', (t) ->
 	_connect()
 	console.log schemo.models.Publication.properFields()
+	t.end()
 	_disconnect()
 

@@ -41,17 +41,10 @@ module.exports = class Factory extends Base
 			if propContext
 				ret['@context'][schemaPathName] = propContext
 			schemaPathOptions = schemaPathDef.options
-			if Utils.isJoinSingle schemaPathOptions
-				# console.log "#{schemaPathName}: Utils.isJoinSingle"
-				# console.log propDef
-				# XXX recursive
-				ret[schemaPathName] = factory._listAssertions(propDef, opts)
-			else if Utils.isJoinMulti schemaPathOptions
-				# console.log "#{schemaPathName}: Utils.isJoinMulti"
-				ret[schemaPathName] = []
-				for subDoc in propDef
-					# XXX recursive
-					ret[schemaPathName].push factory._listAssertions(subDoc, opts, depth + 1)
+			if schemaPathOptions.refOne and flatDoc[schemaPathName]
+				ret[schemaPathName] = { '@id': flatDoc[schemaPathName] }
+			else if schemaPathOptions.refMany and flatDoc[schemaPathName]
+				ret[schemaPathName] = { '@id': v } for v of flatDoc[schemaPathName]
 			else
 				# console.log "#{schemaPathName}: standard: '#{flatDoc[schemaPathName]}'"
 				ret[schemaPathName] = flatDoc[schemaPathName]
