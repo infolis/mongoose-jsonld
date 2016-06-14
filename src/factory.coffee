@@ -46,7 +46,7 @@ module.exports = class Factory extends Base
 			if schemaPathOptions.refOne and flatDoc[schemaPathName]
 				ret[schemaPathName] = { '@id': flatDoc[schemaPathName] }
 			else if schemaPathOptions.refMany and flatDoc[schemaPathName]
-				ret[schemaPathName] = { '@id': v } for v of flatDoc[schemaPathName]
+				ret[schemaPathName] = { '@id': v } for v in flatDoc[schemaPathName]
 			else
 				# console.log "#{schemaPathName}: standard: '#{flatDoc[schemaPathName]}'"
 				ret[schemaPathName] = flatDoc[schemaPathName]
