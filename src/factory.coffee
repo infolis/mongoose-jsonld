@@ -95,7 +95,7 @@ module.exports = class Factory extends Base
 			#
 			schema.add _id : {
 				type: String
-				validate: factory.validators.UUID
+				# validate: factory.validators.UUID
 				# required: yes
 			}
 			#
