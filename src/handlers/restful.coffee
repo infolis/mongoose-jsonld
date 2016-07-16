@@ -63,10 +63,10 @@ module.exports = class RestfulHandler extends Base
 			for kvPair in req.query.q.split(',')
 				[k,v] = kvPair.split(':')
 				k = @_pathNameForPropertyUri model, k
-				if k of searchDoc 
+				if k of searchDoc
 					if typeof k isnt 'object'
-						searchDoc[k] = $in : [searchDoc[k]]
-					searchDoc[k].$in.push v
+						searchDoc = {'$and': ["#{k}":searchDoc[k]]}
+					searchDoc.$and.push "#{k}" : v
 				else 
 					searchDoc[k] = v
 		log.debug "GET every #{model.modelName} with #{JSON.stringify searchDoc}"
@@ -131,17 +131,20 @@ module.exports = class RestfulHandler extends Base
 		if not id
 			res.status 404
 			return next()
-		delete input._id
+		# delete input._id
+		input._id = id
 		model.findOne {_id: id}, (err, doc) ->
 			if err
 				res.status 400
 				return next new Error(err)
 			doc or= new model(input)
 			doc.set(k,v) for k,v of input
+			log.silly doc._id
 			doc.save (err) ->
 				if err
 					res.status 400
 					return next new Error(err)
+				res.header 'Location', doc.uri()
 				res.status 201
 				res.end()
 
