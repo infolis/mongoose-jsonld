@@ -46,7 +46,8 @@ module.exports = class Factory extends Base
 			if schemaPathOptions.refOne and flatDoc[schemaPathName]
 				ret[schemaPathName] = { '@id': flatDoc[schemaPathName] }
 			else if schemaPathOptions.refMany and flatDoc[schemaPathName]
-				ret[schemaPathName] = { '@id': v } for v in flatDoc[schemaPathName]
+				ret[schemaPathName] = []
+				ret[schemaPathName].push { '@id': v } for v in flatDoc[schemaPathName]
 			else
 				# console.log "#{schemaPathName}: standard: '#{flatDoc[schemaPathName]}'"
 				ret[schemaPathName] = flatDoc[schemaPathName]
@@ -247,7 +248,7 @@ module.exports = class Factory extends Base
 			schema.paths[propName].options or= {}
 			schema.paths[propName].options['@context'] = pc
 		return schema
-	
+
 	createModel: (name, schema) ->
 		model = @mongoose.model(name, schema)
 		# Create indexes
