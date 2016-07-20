@@ -59,16 +59,18 @@ module.exports = class RestfulHandler extends Base
 
 	_GET_Collection : (model, req, res, next) ->
 		searchDoc = {}
-		if req.query.q
-			for kvPair in req.query.q.split(',')
-				[k,v] = kvPair.split(':')
-				k = @_pathNameForPropertyUri model, k
-				if k of searchDoc
-					if typeof k isnt 'object'
-						searchDoc = {'$and': ["#{k}":searchDoc[k]]}
-					searchDoc.$and.push "#{k}" : v
-				else 
-					searchDoc[k] = v
+		q = req.query.q
+		if q
+			searchDoc = '$and': []
+			q = q.replace /,\s*$/, ''
+			for kvPair in q.split(',')
+				k = Utils.lastUriSegment(kvPair.substr(0, kvPair.indexOf(':')))
+				v = kvPair.substr(kvPair.indexOf(':') + 1)
+				log.debug k, v
+				if v and typeof v is 'string' and v.indexOf('http://') == 0
+					v = "#{Utils.lastUriSegment(v)}$"
+				log.debug k, v
+				searchDoc.$and.push "#{k}" : { "$regex": v }
 		log.debug "GET every #{model.modelName} with #{JSON.stringify searchDoc}"
 		model.find(searchDoc).limit(500).exec (err, docs) ->
 			if err
@@ -162,7 +164,3 @@ module.exports = class RestfulHandler extends Base
 			log.error "Error happened when trying to cast '#{toParse}' to #{idType}", e
 			res.status 404
 		return id
-
-	# XXX TODO
-	_pathNameForPropertyUri: (model, x) -> x
-
