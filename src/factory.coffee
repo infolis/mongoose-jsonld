@@ -258,12 +258,13 @@ module.exports = class Factory extends Base
 			if schema.paths[k].options.index
 				log.silly "Indexing #{name}##{k}"
 				indexProp[k] = 1
-		schema.index(indexProp)
+		if Object.keys(indexProp).length > 0
+			schema.index(indexProp)
 		# Log errors
 		model.on 'error', (err) ->
 			if err.message.indexOf('sockets closed') == -1
 				log.error "Non-Socket-Close error", err
 		model.on 'index', (err) ->
-			# return log.error err if err
+			return log.error "Error indexing '#{name}':", err if err
 			return log.silly "Index for '#{name}' built successfully"
 		return model
