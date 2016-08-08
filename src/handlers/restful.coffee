@@ -60,7 +60,7 @@ module.exports = class RestfulHandler extends Base
 	_GET_Collection : (model, req, res, next) ->
 		searchDoc = {}
 		q = req.query.q
-		max = req.query.max or 500
+		max = parseInt(req.query.max) or 500
 		if q
 			searchDoc = '$and': []
 			q = q.replace /,\s*$/, ''
