@@ -60,6 +60,7 @@ module.exports = class RestfulHandler extends Base
 	_GET_Collection : (model, req, res, next) ->
 		searchDoc = {}
 		q = req.query.q
+		max = req.query.max or 500
 		if q
 			searchDoc = '$and': []
 			q = q.replace /,\s*$/, ''
@@ -72,7 +73,7 @@ module.exports = class RestfulHandler extends Base
 				log.debug k, v
 				searchDoc.$and.push "#{k}" : { "$regex": v }
 		log.debug "GET every #{model.modelName} with #{JSON.stringify searchDoc}"
-		model.find(searchDoc).limit(500).exec (err, docs) ->
+		model.find(searchDoc).limit(max).exec (err, docs) ->
 			if err
 				log.error err
 				res.status 500
