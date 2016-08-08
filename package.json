@@ -1,6 +1,6 @@
 {
   "name": "mongoose-jsonld",
-  "version": "0.2.7",
+  "version": "0.2.8",
   "description": "Add JSON-LD context to a Mongoose schema",
   "main": "lib/index.js",
   "scripts": {
